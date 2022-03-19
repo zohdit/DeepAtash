@@ -30,7 +30,6 @@ class MapFolder:
         return os.path.exists(self.tig_version_json_path)
 
     def version_info(self):
-        print(self.tig_version_json_path)
         with open(self.tig_version_json_path, 'r') as f:
             return json.load(f)
 

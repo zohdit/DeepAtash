@@ -30,11 +30,12 @@ creator.create("FitnessMulti", base.Fitness, weights=(-1.0, -1.0, 1))
 # Define the individual.
 creator.create("Individual", Sample, fitness=creator.FitnessMulti)
 
-last_seed_index = POPSIZE
+
 
 def generate_initial_pop(problem):
     samples = []
-    for i in range(1, POPSIZE+1):
+    initialpop = 48
+    for i in range(1, initialpop+1):
         max_angle = random.randint(10,100)
         road = problem.generate_random_member(max_angle)
         ind = BeamNGIndividual.BeamNGIndividual(road, problem.config)
@@ -83,7 +84,7 @@ def evaluate_individual(individual, features, goal, archive):
         individual.coordinate = b
         individual.distance_to_target = us.manhattan(a, goal)
     
-    log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['SegmentCount']}, {individual.features['Curvature']}, {individual.features['SDSteeringAngle']},{individual.features['MeanLateralPosition']}) and distance {individual.distance_to_target} evaluated")
+    log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['SegmentCount']}, {individual.features['Curvature']}, {individual.features['SDSteeringAngle']}, {individual.features['MeanLateralPosition']}) and distance {individual.distance_to_target} evaluated")
 
     return individual.ind.oob_ff, individual.distance_to_target, individual.sparseness
 
@@ -124,6 +125,7 @@ toolbox.register("mutate", mutate_individual)
 
 
 def main(name):
+    last_seed_index = POPSIZE
     _config = cfg.BeamNGConfig()
     _config.name = name
     problem = BeamNGProblem.BeamNGProblem(_config)
@@ -195,8 +197,8 @@ def main(name):
                 last_seed_index += 1
 
             # for i in range(len(population)):
-            #     if population[i].seed in archive.archived_seeds:
-            #         population[i] = reseed_individual(problem)
+            #      if population[i].seed in archive.archived_seeds:
+            #          population[i] = reseed_individual(problem)
 
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
@@ -219,10 +221,6 @@ def main(name):
         elapsed_time = end_time - start_time
 
 
-
-        if Config.EXECTIME > 2000:
-            archive.export_archive(name+"/h")
-            exit()
         if Config.EXECTIME > 10800 and h_3:
             archive.export_archive(name+"/3h")
             h_3 = False
@@ -232,8 +230,8 @@ def main(name):
         if Config.EXECTIME > RUN_TIME: #gen == GEN: #or goal_acheived(population):
             condition = False
 
-        log.info("Elapsed time:", elapsed_time)
-        log.info("EXECTIME: ", Config.EXECTIME)
+        log.info("Elapsed time: " + str(elapsed_time))
+        log.info("EXECTIME: " + str(Config.EXECTIME))
         log.info(f"Archive: {len(archive.archive)}")
 
     archive.export_archive(name+"/10h")

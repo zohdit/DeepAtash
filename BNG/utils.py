@@ -40,7 +40,7 @@ def get_distance(ind1, ind2):
 
     if DIVERSITY_METRIC == "INPUT":
         # input space
-        distance = ind1.m.distance(ind2.m)
+        distance = ind1.ind.m.distance(ind2.ind.m)
        
 
     return distance
@@ -52,7 +52,7 @@ def get_distance_by_metric(ind1, ind2, metric):
 
     if metric == "INPUT":
         # input space
-        distance = ind1.m.distance(ind2.m)
+        distance = ind1.ind.m.distance(ind2.ind.m)
     
 
     return distance
@@ -102,7 +102,7 @@ def rel_segment_count(x):
 # counts only turns, split turns
 def identify_segment(nodes):
      # result is angle, distance, [x2,y2], [x1,y1]
-     result = _calc_dist_angle(nodes)
+     result, _ = _calc_dist_angle(nodes)
 
      segments = []
      SEGMENT_THRESHOLD = 15

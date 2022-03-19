@@ -17,29 +17,28 @@ ROAD_BBOX_SIZE = (-1000, 0, 1000, 1500)
 EXECTIME = 0
 INVALID = 0
 
-# Dataset
-EXPECTED_LABEL   = 5
+
 # K-nearest
 K = 1
 
 GEN              = 1000
-POPSIZE          = 48
+POPSIZE          = 10
 
 
-FEATURES         = ["MeanLateralPosition", "SegmentCount"] # Curvature, SDSteeringAngle
+FEATURES         = ["MeanLateralPosition", "SegmentCount"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
 NUM_CELLS        = 25
 
 GOAL             = (156, 4)
 # goal cell for white area 
 # goal cell for gray area 
-# goal cell for dark area  MLP-TurnCnt (156, 4), MLP-StdSA (158,97), Curv-StdSA (22, 75)
+# goal cell for dark area  MLP-TurnCnt (156, 4), MLP-StdSA (158,97), Curv-StdSA (22, 75), MLP-Curv (167, 20)
 DIVERSITY_METRIC = "INPUT" 
-ARCHIVE_THRESHOLD =  35.0 
+ARCHIVE_THRESHOLD =  10.0 #35.0 
 
-RESEEDUPPERBOUND = int(POPSIZE * 0.1)
+RESEEDUPPERBOUND = 2
 MAX_BUCKET_SIZE = 50
 RUN_TIME = 36000
-
+TARGET_THRESHOLD = 2
 
 def to_json(folder):
     config = {

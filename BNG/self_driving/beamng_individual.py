@@ -37,6 +37,7 @@ class BeamNGIndividual(Individual):
     def clone(self) -> 'BeamNGIndividual':
         res: BeamNGIndividual = creator.Individual(self.m.clone(), self.config)
         res.seed = self.seed
+        res.oob_ff = None
         log.debug(f'cloned to {res} from {self}')
         return res
 

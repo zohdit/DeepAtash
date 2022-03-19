@@ -25,18 +25,17 @@ class Sample:
     def to_dict(self):
         return {
                 'id': self.id,
-                'misbehaviour': self.is_misbehavior(),
-                'elapsed': self.ind.m.elapsed,
-                'timestamp': self.ind.m.timestamp,
-                'misbehaviour': self.is_misbehavior(),
+                'elapsed': str(self.ind.m.elapsed),
+                'timestamp': str(self.ind.m.timestamp),
+                'misbehaviour': self.is_misbehaviour(),
                 'performance': str(self.ind.m.distance_to_boundary),
                 'features': self.features,
                 'distance to target': str(self.distance_to_target),
                 'sparseness': str(self.sparseness),
                 'control_nodes': self.ind.m.control_nodes,
                 'sample_nodes': self.ind.m.sample_nodes,
-                'num_spline_nodes': self.ind.m.num_spline_nodes,
-                'road_bbox_size': self.ind.m.road_bbox.bbox.bounds
+                'num_spline_nodes': self.ind.m.num_spline_nodes
+                # 'road_bbox_size': self.ind.m.road_bbox.bbox.bounds
         }
 
     def dump(self, filename):

@@ -183,7 +183,10 @@ class RoadMutator:
                 gene_index = next_gene_index()
 
         if gene_index == -1:
-            raise ValueError("No gene can be mutated")
+            #raise ValueError("No gene can be mutated")
+            log.info("No gene can be mutated")
+            self.road.control_nodes = backup_nodes
+
 
         assert self.road.is_valid()
         assert self.road.control_nodes != backup_nodes

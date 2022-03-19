@@ -1,5 +1,5 @@
 
-from config import ARCHIVE_THRESHOLD, MAX_BUCKET_SIZE
+from config import ARCHIVE_THRESHOLD, TARGET_THRESHOLD
 from os import makedirs
 from os.path import exists
 from evaluator import Evaluator
@@ -52,7 +52,7 @@ class Archive:
     def update_archive(self, ind, evaluator):
         if ind not in self.archive:
             if len(self.archive) == 0:
-                if ind.distance_to_target <= 1 and ind.is_misbehavior() == True:
+                if ind.distance_to_target <= TARGET_THRESHOLD and ind.is_misbehaviour() == True:
                     log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['SegmentCount']}, {ind.features['Curvature']}, {ind.features['SDSteeringAngle']}),{ind.features['MeanLateralPosition']} and distance {ind.distance_to_target} added to archive")
 
                     self.archive.append(ind)
@@ -64,7 +64,7 @@ class Archive:
                 # Verify whether the candidate is close to the existing member of the archive
                 # Note: 'close' is defined according to a user-defined threshold
                 if d_min > ARCHIVE_THRESHOLD:
-                    if ind.distance_to_target <= 1 and ind.is_misbehavior() == True:
+                    if ind.distance_to_target <= TARGET_THRESHOLD and ind.is_misbehaviour() == True:
                         log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['SegmentCount']}, {ind.features['Curvature']}, {ind.features['SDSteeringAngle']}),{ind.features['MeanLateralPosition']} and distance {ind.distance_to_target} added to archive")
                         self.archive.append(ind)
                         self.archived_seeds.add(ind.seed)
