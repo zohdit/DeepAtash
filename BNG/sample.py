@@ -19,6 +19,7 @@ class Sample:
         self.features = {}
         self.distance_to_target = np.inf
         self.sparseness = np.inf
+        self.misbehaviour = None
         Sample.COUNT += 1
 
 

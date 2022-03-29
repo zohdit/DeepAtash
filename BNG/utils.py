@@ -57,7 +57,9 @@ def get_distance_by_metric(ind1, ind2, metric):
 
     return distance
 
-
+def euclidean(img1, img2):
+    dist = np.linalg.norm(img1 - img2)
+    return dist
 
 def manhattan(coords_ind1, coords_ind2):
     return abs(coords_ind1[0] - coords_ind2[0]) + abs(coords_ind1[1] - coords_ind2[1])

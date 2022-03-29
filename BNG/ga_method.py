@@ -1,25 +1,26 @@
-import random
 from datetime import datetime
 from pickle import POP
 import sys
-import random as rand
+import random
+from this import d
 from deap import base, creator, tools
 from evaluator import Evaluator
-import tensorflow as tf
 import logging as log
 from pathlib import Path
 import numpy as np
 
 # local
-import config
+from core.config import Config
+import self_driving.beamng_config as cfg
+import self_driving.beamng_individual as BeamNGIndividual
 from archive import Archive
-from config import EXPECTED_LABEL, BITMAP_THRESHOLD, FEATURES, RUN_TIME, POPSIZE, GOAL, RESEEDUPPERBOUND, MODEL, DIVERSITY_METRIC, XAI_METHOD
-from digit_mutator import DigitMutator
-from sample import Sample
+from config import POPSIZE, to_json
+import self_driving.beamng_problem as BeamNGProblem
+from config import GOAL, FEATURES, POPSIZE, RESEEDUPPERBOUND, RUN_TIME, DIVERSITY_METRIC
 import utils as us
-from utils import move_distance, bitmap_count, orientation_calc
-import vectorization_tools
+from sample import Sample
 
+evaluator = Evaluator()
 
 # DEAP framework setup.
 toolbox = base.Toolbox()
@@ -28,49 +29,33 @@ creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 # Define the individual.
 creator.create("Individual", Sample, fitness=creator.FitnessMin)
 
-mnist = tf.keras.datasets.mnist
-(X_train, y_train), (x_test, y_test) = mnist.load_data()
-# Load the pre-trained model.
-model = tf.keras.models.load_model(MODEL)
-starting_seeds = []
-evaluator = Evaluator()
-dnn_pipeline = None
-encoder = None
-
-if DIVERSITY_METRIC == "LATENT":
-    encoder = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
-    decoder = tf.keras.models.load_model("models/vae_decoder_test", compile=False)
 
 
-def generate_initial_pop():
+def generate_initial_pop(problem):
     samples = []
-    for seed in range(len(x_test)):
-        if y_test[seed] == EXPECTED_LABEL:
-            starting_seeds.append(seed)
-            xml_desc = vectorization_tools.vectorize(x_test[seed])
-            sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed) 
-            samples.append(sample)
-        
+    initialpop = 48
+    for i in range(1, initialpop+1):
+        max_angle = random.randint(10,100)
+        road = problem.generate_random_member(max_angle)
+        ind = BeamNGIndividual.BeamNGIndividual(road, problem.config)
+        ind.seed = i
+        sample = creator.Individual(ind)
+        samples.append(sample)        
     return samples 
 
-def reseed_individual(seeds):
-    # Chooses randomly the seed among the ones that are not covered by the archive
-    if len(starting_seeds) > len(seeds):
-        seed = random.sample(set(starting_seeds) - seeds, 1)[0]
-    else:
-        seed = random.choice(starting_seeds)
-    xml_desc = vectorization_tools.vectorize(x_test[seed])
-    sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed)
+def reseed_individual(problem, seed):
+    max_angle = random.randint(10,100)
+    road = problem.generate_random_member(max_angle)
+    ind = BeamNGIndividual.BeamNGIndividual(road, problem.config)
+    ind.oob_ff = None
+    ind.seed = seed
+    sample = creator.Individual(ind)
     return sample
 
 def evaluate_individual(individual, features, goal, archive):
-    if individual.predicted_label == None:
-        evaluator.evaluate(individual, model)
-    if DIVERSITY_METRIC == "LATENT" and individual.latent_vector is None:
-        individual.compute_latent_vector(encoder)
 
-    elif DIVERSITY_METRIC == "HEATMAP" and individual.explanation is None:
-        individual.compute_explanation()
+    if individual.ind.oob_ff == None:
+        evaluator.evaluate(individual.ind)
 
     # diversity computation
     evaluator.evaluate_sparseness(individual, archive.archive)
@@ -87,36 +72,42 @@ def evaluate_individual(individual, features, goal, archive):
             b = b + (i,)
 
         individual.features = {
-                    "moves":  move_distance(individual),
-                    "orientation": orientation_calc(individual,0),
-                    "bitmaps": bitmap_count(individual, BITMAP_THRESHOLD)
+                    "MinRadius": us.new_min_radius(individual),
+                    "SegmentCount": us.segment_count(individual),
+                    "DirCoverage": us.direction_coverage(individual),
+                    "SDSteeringAngle": us.sd_steering(individual),
+                    "MeanLateralPosition": us.mean_lateral_position(individual),
+                    "Curvature": us.curvature(individual) 
         }
         
         individual.coordinate = b
         individual.distance_to_target = us.manhattan(a, goal)
     
-    log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}) and distance {individual.distance_to_target} evaluated")
-
+    log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['SegmentCount']}, {individual.features['Curvature']}, {individual.features['SDSteeringAngle']}, {individual.features['MeanLateralPosition']}) and distance {individual.distance_to_target} evaluated")
 
     return (individual.distance_to_target,)
 
 def mutate_individual(individual):
-    sample = DigitMutator(individual).mutate(x_test)
+    sample = individual.clone()
+    sample.ind.mutate()
     return sample
 
 def generate_features():
     features = []
 
-    if "Moves" in FEATURES:
-        f3 = ["moves", 1, "move_distance"]
+    if "MeanLateralPosition" in FEATURES:
+        f3 = ["MeanLateralPosition", 2, "mean_lateral_position"]
         features.append(f3)
-    if "Orientation" in FEATURES:
-        f2 = ["orientation", 11, "orientation_calc"]
+    if "SegmentCount" in FEATURES:
+        f2 = ["SegmentCount", 1, "segment_count"]
         features.append(f2)
-    if "Bitmaps" in FEATURES:
-        f1 = ["bitmaps", 4, "bitmap_count"]
+    if "Curvature" in FEATURES:
+        f1 = ["Curvature", 1, "curvature"]
         features.append(f1)
-
+    if "SDSteeringAngle" in FEATURES:
+        f0 = ["SDSteeringAngle", 7, "sd_steering"]
+        features.append(f0)
+    
     return features
        
 def goal_acheived(population):
@@ -128,12 +119,16 @@ def goal_acheived(population):
 
 toolbox.register("population", generate_initial_pop)
 toolbox.register("evaluate", evaluate_individual)
-toolbox.register("select", tools.selBest) # tools.selTournament, tournsize=2) 
+toolbox.register("select", tools.selBest)
 toolbox.register("mutate", mutate_individual)
 
 
+def main(name):
+    last_seed_index = POPSIZE
+    _config = cfg.BeamNGConfig()
+    _config.name = name
+    problem = BeamNGProblem.BeamNGProblem(_config)
 
-def main():
     start_time = datetime.now()
     # initialize archive
     archive = Archive()
@@ -153,7 +148,7 @@ def main():
     log.info(f"Generate initial population")  
            
 
-    population = toolbox.population()
+    population = toolbox.population(problem)
 
     # Evaluate the individuals
     invalid_ind = [ind for ind in population]
@@ -171,6 +166,9 @@ def main():
     condition = True
     gen = 1
 
+    h_3 = True
+    h_5 = True
+
     while condition:
         log.info(f"Iteration: {gen}")
 
@@ -178,7 +176,8 @@ def main():
         # offspring = [toolbox.clone(ind) for ind in population]
         offspring = []
         for ind in population:
-            sample = creator.Individual(ind.xml_desc, EXPECTED_LABEL, ind.seed)
+            sample = creator.Individual(ind.ind)
+            sample.ind.oob_ff = None
             offspring.append(sample)
                 
         # Mutation.
@@ -190,14 +189,15 @@ def main():
         if len(archive.archive) > 0:
             log.info(f"Reseeding")
             seed_range = random.randrange(1, RESEEDUPPERBOUND)
-            candidate_seeds = archive.archived_seeds
+            # candidate_seeds = archive.archived_seeds
 
             for i in range(seed_range):
-                population[len(population) - i - 1] = reseed_individual(candidate_seeds)
+                population[len(population) - i - 1] = reseed_individual(problem, last_seed_index)
+                last_seed_index += 1
 
-            for i in range(len(population)):
-                if population[i].seed in archive.archived_seeds:
-                    population[i] = reseed_individual(candidate_seeds)
+            # for i in range(len(population)):
+            #      if population[i].seed in archive.archived_seeds:
+            #          population[i] = reseed_individual(problem)
 
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
@@ -214,39 +214,55 @@ def main():
         # Select the next generation population
         population = toolbox.select(population + offspring, POPSIZE)
 
+        for individual in population:
+            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['SegmentCount']}, {individual.features['Curvature']}, {individual.features['SDSteeringAngle']}, {individual.features['MeanLateralPosition']}) and distance {individual.distance_to_target} selected")
+
+
         gen += 1
 
         end_time = datetime.now()
         elapsed_time = end_time - start_time
-        if elapsed_time.seconds > RUN_TIME: #gen == GEN: #or goal_acheived(population):
+
+
+        if Config.EXECTIME > 10800 and h_3:
+            archive.export_archive(name+"/3h")
+            h_3 = False
+        elif Config.EXECTIME > 18000 and h_5:
+            archive.export_archive(name+"/5h")
+            h_5 = False
+        if Config.EXECTIME > RUN_TIME: #gen == GEN: #or goal_acheived(population):
             condition = False
+
+        log.info("Elapsed time: " + str(elapsed_time))
+        log.info("EXECTIME: " + str(Config.EXECTIME))
         log.info(f"Archive: {len(archive.archive)}")
 
-    log.info(f"Archive: {len(archive.archive)}")
-    archive.export_archive(name)
+    archive.export_archive(name+"/10h")
     return population
 
 
 if __name__ == "__main__": 
+
     start_time = datetime.now()
     run = sys.argv[1]
     name = f"logs/{run}-ga_-features_{FEATURES[0]}-{FEATURES[1]}-diversity_{DIVERSITY_METRIC}"
-
-    Path(name).mkdir(parents=True, exist_ok=True)
-    config.to_json(name)
     
+    Path(name).mkdir(parents=True, exist_ok=True)
+
+    to_json(name)
     log_to = f"{name}/logs.txt"
-    debug = f"{name}/debug.txt"
 
     # Setup logging
-    us.setup_logging(log_to, debug)
+    us.setup_logging(log_to)
     print("Logging results to " + log_to)
 
-    pop = main()
+    pop = main(name)
     end_time = datetime.now()
     elapsed_time = end_time - start_time
-    log.info("elapsed_time:" + str(elapsed_time))
+    log.info("elapsed_time:"+ str(elapsed_time))
+
     print("GAME OVER")
 
     
 
+    

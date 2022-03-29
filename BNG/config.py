@@ -25,19 +25,19 @@ GEN              = 1000
 POPSIZE          = 10
 
 
-FEATURES         = ["MeanLateralPosition", "SegmentCount"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
+FEATURES         = ["MeanLateralPosition", "Curvature"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
 NUM_CELLS        = 25
 
-GOAL             = (156, 4)
+GOAL             = (167, 20)
 # goal cell for white area 
 # goal cell for gray area 
-# goal cell for dark area  MLP-TurnCnt (156, 4), MLP-StdSA (158,97), Curv-StdSA (22, 75), MLP-Curv (167, 20)
+# goal cell for dark area  MLP-TurnCnt (156, 4), MLP-StdSA (162,108), Curv-StdSA (22, 75), MLP-Curv (167, 20)
 DIVERSITY_METRIC = "INPUT" 
 ARCHIVE_THRESHOLD =  10.0 #35.0 
 
 RESEEDUPPERBOUND = 2
 MAX_BUCKET_SIZE = 50
-RUN_TIME = 36000
+RUN_TIME = 3600
 TARGET_THRESHOLD = 2
 
 def to_json(folder):
