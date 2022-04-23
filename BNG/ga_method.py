@@ -69,8 +69,8 @@ def evaluate_individual(individual, features, goal, archive):
         u = []
         s = []
         for i in range(0,len(features)):
-            l.append(goal[i] - features[i][1])
-            u.append(goal[i] + features[i][1])
+            l.append(goal[i] - (features[i][1]/2))
+            u.append(goal[i] + (features[i][1]/2))
             s.append(features[i][1])
 
         manhattan_dist = 0
@@ -151,12 +151,8 @@ def main(name):
     features = generate_features()
 
     # rescale GOAL to the feature intervals
-    goal = list(GOAL)
-    findex = 0
-    for f in features:
-        goal[findex] = (GOAL[findex]/f[1])
-        findex += 1
-    goal = tuple(goal)
+    goal = GOAL
+
 
 
     # Generate initial population and feature map 
