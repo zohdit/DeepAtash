@@ -34,7 +34,7 @@ creator.create("Individual", Sample, fitness=creator.FitnessMulti)
 
 def generate_initial_pop(problem):
     samples = []
-    initialpop = 48
+    initialpop = 1
     for i in range(1, initialpop+1):
         max_angle = random.randint(10,100)
         road = problem.generate_random_member(max_angle)
@@ -61,16 +61,32 @@ def evaluate_individual(individual, features, goal, archive):
     # diversity computation
     evaluator.evaluate_sparseness(individual, archive.archive)
 
+
     if individual.distance_to_target == np.inf:         
-        # rescaled coordinates for distance calculation
-        a = tuple()
         # original coordinates
         b = tuple()
 
-        for ft in features:
-            i = us.feature_simulator(ft[2], individual)
-            a = a + ((i/ft[1]),)
-            b = b + (i,)
+    
+        l = []
+        u = []
+        s = []
+        for i in range(0,len(features)):
+            l.append(goal[i] - features[i][1])
+            u.append(goal[i] + features[i][1])
+            s.append(features[i][1])
+
+        manhattan_dist = 0
+        for i in range(0,len(features)):
+            fi = us.feature_simulator(features[i][2], individual)
+            if fi > u[i]:
+                di = np.ceil((fi - u[i])/s[i])
+            elif fi < l[i]:
+                di = np.ceil((l[i] - fi)/s[i])
+            else:
+                di = 0
+            manhattan_dist = manhattan_dist + di
+
+            b = b + (fi,)
 
         individual.features = {
                     "MinRadius": us.new_min_radius(individual),
@@ -82,7 +98,7 @@ def evaluate_individual(individual, features, goal, archive):
         }
         
         individual.coordinate = b
-        individual.distance_to_target = us.manhattan(a, goal)
+        individual.distance_to_target = manhattan_dist
     
     log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['SegmentCount']}, {individual.features['Curvature']}, {individual.features['SDSteeringAngle']}, {individual.features['MeanLateralPosition']}) and distance {individual.distance_to_target} evaluated")
 
@@ -214,6 +230,10 @@ def main(name):
 
         # Select the next generation population
         population = toolbox.select(population + offspring, POPSIZE)
+
+        for individual in population:
+            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['SegmentCount']}, {individual.features['Curvature']}, {individual.features['SDSteeringAngle']}, {individual.features['MeanLateralPosition']}) and distance {individual.distance_to_target} selected")
+
 
         gen += 1
 

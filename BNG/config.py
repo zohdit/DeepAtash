@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 
 BNG_USER = f"{str(Path.home())}/Documents/BeamNG.research"
-BNG_HOME = os.environ['BNG_HOME']
+BNG_HOME = f"{str(Path.home())}/Desktop/beamng/trunk" #os.environ['BNG_HOME']
 GEN_RANDOM = 'GEN_RANDOM'
 GEN_RANDOM_SEEDED = 'GEN_RANDOM_SEEDED'
 GEN_SEQUENTIAL_SEEDED = 'GEN_SEQUENTIAL_SEEDED'
@@ -28,16 +28,22 @@ POPSIZE          = 10
 FEATURES         = ["MeanLateralPosition", "Curvature"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
 NUM_CELLS        = 25
 
-GOAL             = (167, 20)
+
+mlp_range       = 2
+curv_range      = 1
+sdstd_range     = 7
+turncnt_range   = 1
+
+GOAL             = (165, 14)
 # goal cell for white area 
-# goal cell for gray area 
-# goal cell for dark area  MLP-TurnCnt (156, 4), MLP-StdSA (162,108), Curv-StdSA (22, 75), MLP-Curv (167, 20)
+# goal cell for gray area  MLP-StdSA (168, 90), mlp-Curv (165, 12)
+# goal cell for dark area  MLP-TurnCnt (160, 3), MLP-StdSA (162,108), Curv-StdSA (22, 75), MLP-Curv (167, 20)
 DIVERSITY_METRIC = "INPUT" 
 ARCHIVE_THRESHOLD =  10.0 #35.0 
 
 RESEEDUPPERBOUND = 2
 MAX_BUCKET_SIZE = 50
-RUN_TIME = 3600
+RUN_TIME = 36000
 TARGET_THRESHOLD = 2
 
 def to_json(folder):

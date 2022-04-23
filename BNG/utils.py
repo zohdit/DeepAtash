@@ -14,6 +14,7 @@ from skimage.color import rgb2gray
 from core.curvature import define_circle
 from self_driving.edit_distance_polyline import _calc_dist_angle
 from itertools import tee
+from shapely.geometry import LineString, Polygon, Point
 
 THE_NORTH = [0,1]
 ANGLE_THRESHOLD = 0.005
@@ -318,3 +319,106 @@ def setup_logging(log_file):
                   level=log.INFO, handlers=[term_handler, file_handler])
     sys.excepthook = log_exception
     log.info('Started the logging framework writing to file: %s', log_file)
+
+
+
+def calc_point_edges(p1, p2):
+    origin = np.array(p1[0:2])
+
+    a = np.subtract(p2[0:2], origin)
+    # print(p1, p2)
+    v = (a / np.linalg.norm(a)) * p1[3] / 2
+
+    l = origin + np.array([-v[1], v[0]])
+    r = origin + np.array([v[1], -v[0]])
+    return tuple(l), tuple(r)
+
+
+def get_geometry(middle_nodes):
+    middle = []
+    right = []
+    left = []
+    n = len(middle) + len(middle_nodes)
+
+    # add middle nodes (road points): adds central spline
+    middle += list(middle_nodes)
+    left += [None] * len(middle_nodes)
+    right += [None] * len(middle_nodes)
+
+    # recalculate nodes: adds points of the lateral lane margins
+    for i in range(n - 1):
+        l, r = calc_point_edges(middle[i], middle[i + 1])
+        left[i] = l
+        right[i] = r
+    # the last middle point
+    right[-1], left[-1] = calc_point_edges(middle[-1], middle[-2])
+
+    road_geometry = list()
+    for index in range(len(middle)):
+        point = dict()
+        point['middle'] = middle[index]
+        # Copy the Z value from middle
+        point['right'] = list(right[index])
+        point['right'].append(middle[index][2])
+        # Copy the Z value from middle
+        point['left'] = list(left[index])
+        point['left'].append(middle[index][2])
+
+        road_geometry.append(point)
+
+    return road_geometry
+
+
+def is_oob(road_nodes, simulation_states):
+    # Create the road geometry from the nodes. At this point nodes have been reversed already if needed.
+    road_geometry = get_geometry(road_nodes)
+
+    # Compute right polygon
+    # Create the right lane polygon from the geometry
+    left_edge_x = np.array([e['middle'][0] for e in road_geometry])
+    left_edge_y = np.array([e['middle'][1] for e in road_geometry])
+    right_edge_x = np.array([e['right'][0] for e in road_geometry])
+    right_edge_y = np.array([e['right'][1] for e in road_geometry])
+
+    # Compute the "short" edge at the end of the road to rule out false positives
+    shorty = LineString([(left_edge_x[-1], left_edge_y[-1]), (right_edge_x[-1], right_edge_y[-1])]).buffer(2.0)
+
+    # Note that one must be in reverse order for the polygon to close correctly
+    right_edge = LineString(zip(right_edge_x[::-1], right_edge_y[::-1]))
+    left_edge = LineString(zip(left_edge_x, left_edge_y))
+
+    l_edge = left_edge.coords
+    r_edge = right_edge.coords
+
+    right_lane_polygon = Polygon(list(l_edge) + list(r_edge))
+
+    #middle = [e['middle'] for e in road_geometry]
+    #right = [e['right'] for e in road_geometry]
+    #road_poly = [(p[0], p[1]) for p in middle]
+    #right = [(p[0], p[1]) for p in right]
+    #road_poly.extend(right[::-1])
+    #right_polygon = Polygon(road_poly)
+
+
+    first_oob_state = None
+    position_of_first_oob_state = None
+    for idx, simulation_state in enumerate(simulation_states):
+        position = Point(simulation_state["pos"][0], simulation_state["pos"][1])
+        if not right_lane_polygon.contains(position):
+
+            # As soon as an observation is outside the lane polygon we mark the OOB, and return that position. All the
+            # subsequent states will be removed/discarded
+            log.debug("First OOB state found at %d", idx)
+            first_oob_state = idx
+            position_of_first_oob_state = position
+
+            break
+
+    if first_oob_state is not None:
+        if shorty.contains(position_of_first_oob_state):
+            log.info("*    False Positive. Short Edge")
+            return False, None
+        else:
+            return True, first_oob_state
+    else:
+        return False, None

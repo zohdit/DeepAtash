@@ -16,7 +16,7 @@ class Config:
 
     def __init__(self):
         # try:
-        self.BNG_HOME = os.environ['BNG_HOME']
+        self.BNG_HOME = f"{str(Path.home())}/Desktop/beamng/trunk" #os.environ['BNG_HOME']
         # except Error:
         #     self.BNG_HOME = f"{str(Path.home())}/Downloads/BeamNG.research.v1.7.0.1"
 
