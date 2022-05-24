@@ -155,6 +155,18 @@ def main():
 
     population = toolbox.population()
 
+    # Evaluate the individuals
+    invalid_ind = [ind for ind in population]
+
+    fitnesses = [toolbox.evaluate(i, features, goal, archive) for i in invalid_ind]
+
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    # Select the next generation population
+    population = toolbox.select(population, POPSIZE)
+
+
     # Begin the generational process
     condition = True
     gen = 1
@@ -168,6 +180,11 @@ def main():
         for ind in population:
             sample = creator.Individual(ind.xml_desc, EXPECTED_LABEL, ind.seed)
             offspring.append(sample)
+                
+        # Mutation.
+        log.info("Mutation")
+        for ind in offspring:
+            toolbox.mutate(ind)
 
         # Reseeding
         if len(archive.archive) > 0:
@@ -182,12 +199,6 @@ def main():
                 if population[i].seed in archive.archived_seeds:
                     population[i] = reseed_individual(candidate_seeds)
 
-                
-        # Mutation.
-        log.info("Mutation")
-        for ind in offspring:
-            toolbox.mutate(ind)
-
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
 
@@ -195,13 +206,17 @@ def main():
 
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
+            
+        # Update archive
+        for ind in offspring + population:
+            archive.update_archive(ind, evaluator)
 
         # Select the next generation population
         population = toolbox.select(population + offspring, POPSIZE)
-            
-        # Update archive
-        for ind in population:
-            archive.update_archive(ind, evaluator)
+
+        for individual in population:
+            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}) and distance {individual.distance_to_target} selected")
+
 
         gen += 1
 

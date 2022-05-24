@@ -132,6 +132,7 @@ toolbox.register("select", tools.selBest) # tools.selTournament, tournsize=2)
 toolbox.register("mutate", mutate_individual)
 
 
+
 def main():
     start_time = datetime.now()
     # initialize archive
@@ -143,7 +144,7 @@ def main():
     goal = list(GOAL)
     findex = 0
     for f in features:
-        goal[findex] = GOAL[findex]/f[1]
+        goal[findex] = (GOAL[findex]/f[1])
         findex += 1
     goal = tuple(goal)
 
@@ -153,6 +154,18 @@ def main():
            
 
     population = toolbox.population()
+
+    # Evaluate the individuals
+    invalid_ind = [ind for ind in population]
+
+    fitnesses = [toolbox.evaluate(i, features, goal, archive) for i in invalid_ind]
+
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    # Select the next generation population
+    population = toolbox.select(population, POPSIZE)
+
 
     # Begin the generational process
     condition = True
@@ -167,6 +180,11 @@ def main():
         for ind in population:
             sample = creator.Individual(ind.xml_desc, EXPECTED_LABEL, ind.seed)
             offspring.append(sample)
+                
+        # Mutation.
+        log.info("Mutation")
+        for ind in offspring:
+            toolbox.mutate(ind)
 
         # Reseeding
         if len(archive.archive) > 0:
@@ -176,11 +194,10 @@ def main():
 
             for i in range(seed_range):
                 population[len(population) - i - 1] = reseed_individual(candidate_seeds)
-                
-        # Mutation.
-        log.info(f"Mutation")
-        for ind in offspring:
-            toolbox.mutate(ind)
+
+            for i in range(len(population)):
+                if population[i].seed in archive.archived_seeds:
+                    population[i] = reseed_individual(candidate_seeds)
 
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
@@ -189,13 +206,17 @@ def main():
 
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
+            
+        # Update archive
+        for ind in offspring + population:
+            archive.update_archive(ind, evaluator)
 
         # Select the next generation population
         population = toolbox.select(population + offspring, POPSIZE)
-            
-        # Update archive
-        for ind in population:
-            archive.update_archive(ind, evaluator)
+
+        for individual in population:
+            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}) and distance {individual.distance_to_target} selected")
+
 
         gen += 1
 

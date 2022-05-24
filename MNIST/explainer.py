@@ -94,3 +94,6 @@ if __name__ == "__main__":
     ae.save('models/mnist_ae.h5')
 
 
+
+
+

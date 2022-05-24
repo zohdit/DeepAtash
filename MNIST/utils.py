@@ -188,6 +188,17 @@ def reshape(v):
     v = v / 255.0
     return v
 
+def reshape_heatmap(v):
+    v = (np.expand_dims(v, 0))
+    # Shape numpy vectors
+    if tf.keras.backend.image_data_format() == 'channels_first':
+        v = v.reshape(v.shape[0], 1, IMG_SIZE, IMG_SIZE)
+    else:
+        v = v.reshape(v.shape[0], IMG_SIZE, IMG_SIZE, 1)
+    v = v.astype('float32')
+    # v = v / 255.0
+    return v
+
 def setup_logging(log_to, debug):
 
     def log_exception(extype, value, trace):
