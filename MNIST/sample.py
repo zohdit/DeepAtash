@@ -2,16 +2,16 @@
 import json
 from os.path import join
 import matplotlib.pyplot as plt
-from utils import reshape_heatmap
 import numpy as np
 from skimage.color import gray2rgb
-
+from utils import heatmap_reshape
 
 import rasterization_tools
 from explainer import explain_integrated_gradiant, explain_cem
 
 from config import XAI_METHOD
-
+# from lime_mnist import explain_lime
+# from lrp_mnist import explain_lrp
 
 class Sample:
     COUNT = 0
@@ -30,8 +30,8 @@ class Sample:
         self.sparseness = np.inf
         self.coordinate = None
         self.latent_vector = None
+        self.heatmap_latent_vector = None
         self.explanation = None
-        self.latent_heatmap_vector = None
         Sample.COUNT += 1
 
     def to_dict(self):
@@ -57,9 +57,9 @@ class Sample:
         mean, _, _ = encoder.predict(self.purified)
         self.latent_vector = mean
 
-    def compute_latent_heatmap_vector(self, encoder):
-        mean, _, _ = encoder.predict(reshape_heatmap(self.explanation))
-        self.latent_heatmap_vector = mean
+    def compute_heatmap_latent_vector(self, encoder):
+        mean, _, _ = encoder.predict(heatmap_reshape(self.explanation))
+        self.heatmap_latent_vector = mean
 
 
     def from_dict(self, the_dict):

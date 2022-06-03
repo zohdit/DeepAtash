@@ -39,6 +39,7 @@ def get_element_by_seed(fm, seed):
 def get_distance(ind1, ind2):
     """ Computes distance based on configuration """
 
+
     if DIVERSITY_METRIC == "INPUT":
         # input space
         distance = euclidean(ind1.purified, ind2.purified)
@@ -46,6 +47,7 @@ def get_distance(ind1, ind2):
     elif DIVERSITY_METRIC == "LATENT":
         # latent space
         distance = euclidean(ind1.latent_vector, ind2.latent_vector)
+
 
     elif DIVERSITY_METRIC == "HEATMAP":
         # heatmap space
@@ -66,6 +68,7 @@ def get_distance_by_metric(ind1, ind2, metric):
     elif metric == "LATENT":
         # latent space
         distance = euclidean(ind1.latent_vector, ind2.latent_vector)
+
 
     elif metric == "HEATMAP":
         # heatmap space
@@ -168,6 +171,18 @@ def input_reshape(x):
 
     return x_reshape
 
+def heatmap_reshape(v):
+    v = np.where(v > 0.01, 1, v)
+    v = (np.expand_dims(v, 0))
+    # Shape numpy vectors
+    if tf.keras.backend.image_data_format() == 'channels_first':
+        v = v.reshape(v.shape[0], 1, IMG_SIZE, IMG_SIZE)
+    else:
+        v = v.reshape(v.shape[0], IMG_SIZE, IMG_SIZE, 1)
+    v = v.astype('float32')
+    np.expand_dims(v, -1) 
+    return v
+
 def print_image(filename, image, cmap=''):
     if cmap != '':
         plt.imsave(filename, image.reshape(28, 28), cmap=cmap, format='png')
@@ -186,17 +201,6 @@ def reshape(v):
         v = v.reshape(v.shape[0], IMG_SIZE, IMG_SIZE, 1)
     v = v.astype('float32')
     v = v / 255.0
-    return v
-
-def reshape_heatmap(v):
-    v = (np.expand_dims(v, 0))
-    # Shape numpy vectors
-    if tf.keras.backend.image_data_format() == 'channels_first':
-        v = v.reshape(v.shape[0], 1, IMG_SIZE, IMG_SIZE)
-    else:
-        v = v.reshape(v.shape[0], IMG_SIZE, IMG_SIZE, 1)
-    v = v.astype('float32')
-    # v = v / 255.0
     return v
 
 def setup_logging(log_to, debug):

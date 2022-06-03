@@ -68,6 +68,7 @@ def evaluate_individual(individual, features, goal, archive):
 
     if individual.predicted_label == None:
         evaluator.evaluate(individual, model)
+    
     if DIVERSITY_METRIC == "LATENT" and individual.latent_vector is None:
         individual.compute_latent_vector(encoder)
 
@@ -75,7 +76,8 @@ def evaluate_individual(individual, features, goal, archive):
         individual.compute_explanation()
 
     # diversity computation
-    evaluator.evaluate_sparseness(individual, archive.archive)
+    print("evaluate")
+    individual.sparseness, _ = evaluator.evaluate_sparseness(individual, archive.archive)
 
     if individual.distance_to_target == np.inf:         
         # rescaled coordinates for distance calculation
@@ -97,7 +99,7 @@ def evaluate_individual(individual, features, goal, archive):
         individual.coordinate = b
         individual.distance_to_target = us.manhattan(a, goal)
     
-    log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}) and distance {individual.distance_to_target} evaluated")
+    log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}), performance {individual.ff} and distance {individual.distance_to_target} evaluated")
 
     return individual.ff, individual.distance_to_target, individual.sparseness
 
@@ -215,7 +217,7 @@ def main():
         population = toolbox.select(population + offspring, POPSIZE)
 
         for individual in population:
-            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}) and distance {individual.distance_to_target} selected")
+            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}), performance {individual.ff} and distance {individual.distance_to_target} selected")
 
 
         gen += 1

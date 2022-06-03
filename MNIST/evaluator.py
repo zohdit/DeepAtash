@@ -58,8 +58,12 @@ class Evaluator:
         # Sparseness is evaluated only if the archive is not empty
         # Otherwise the sparseness is 1
         if (N == 0) or (N == 1 and individuals[0] == ind):
-            sparseness = 1
+            ind.sparseness = np.inf
             closest_ind = ind
+        elif N == 2:
+            ind.sparseness, closest_ind = self.dist_from_nearest_archived(ind, individuals, K)
+            individuals[0].sparseness = ind.sparseness
+            individuals[1].sparseness = ind.sparseness
         else:
-            sparseness, closest_ind = self.dist_from_nearest_archived(ind, individuals, K)
-        return sparseness, closest_ind
+            ind.sparseness, closest_ind = self.dist_from_nearest_archived(ind, individuals, K)
+        return ind.sparseness, closest_ind
