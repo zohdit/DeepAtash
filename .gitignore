@@ -1,0 +1,16 @@
+idea/
+.DS_Store
+__pycache__
+
+logs/*
+logs/
+!logs/README.md
+
+out/*
+!out/README.md
+
+playground/
+
+*.ipynb
+
+.vscode
