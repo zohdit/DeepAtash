@@ -1,30 +1,39 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+import json
+import random
 from datetime import datetime
 from pickle import POP
 import sys
-import random
-
+import random as rand
 from deap import base, creator, tools
+from evaluator import Evaluator
 import tensorflow as tf
+import logging as log
+from pathlib import Path
+import numpy as np
+
 
 # local
 import config
-from evaluator import Evaluator
 from archive import Archive
-from config import EXPECTED_LABEL, BITMAP_THRESHOLD, FEATURES, RUN_TIME, POPSIZE, GOAL,\
-     RESEEDUPPERBOUND, MODEL, DIVERSITY_METRIC
+from config import EXPECTED_LABEL, BITMAP_THRESHOLD, FEATURES, POPSIZE, GOAL, RESEEDUPPERBOUND, MODEL, DIVERSITY_METRIC, TARGET_SIZE, META_FILE 
 from digit_mutator import DigitMutator
 from sample import Sample
 import utils as us
 from utils import move_distance, bitmap_count, orientation_calc
 import vectorization_tools
-
+from feature import Feature
+from timer import Timer
 
 # DEAP framework setup.
 toolbox = base.Toolbox()
 # Define a bi-objective fitness function.
-creator.create("FitnessMulti", base.Fitness, weights=(-1.0, -1.0, 1.0))
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 # Define the individual.
-creator.create("Individual", Sample, fitness=creator.FitnessMulti)
+creator.create("Individual", Sample, fitness=creator.FitnessMin)
+
 
 mnist = tf.keras.datasets.mnist
 (X_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -38,7 +47,9 @@ encoder = None
 if DIVERSITY_METRIC == "LATENT":
     encoder = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
     decoder = tf.keras.models.load_model("models/vae_decoder_test", compile=False)
-
+if DIVERSITY_METRIC == "HEATLAT":
+    encoder = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
+    decoder = tf.keras.models.load_model("models/vaeh_decoder", compile=False)
 
 def generate_initial_pop():
     samples = []
@@ -46,34 +57,11 @@ def generate_initial_pop():
         if y_test[seed] == EXPECTED_LABEL:
             starting_seeds.append(seed)
             xml_desc = vectorization_tools.vectorize(x_test[seed])
-            sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed)
-
-            performance = evaluator.evaluate(sample, model)
-
-            if performance > 0:
-                misbehaviour = False
-            else:
-                misbehaviour = True
-
-            predicted_label = sample.predicted_label
-
-            sample_dict = {
-                "expected_label": str(EXPECTED_LABEL),
-                "features": {
-                    "moves":  move_distance(sample),
-                    "orientation": orientation_calc(sample,0),
-                    "bitmaps": bitmap_count(sample, BITMAP_THRESHOLD)
-                },
-                "id": sample.id,
-                "misbehaviour": misbehaviour,
-                "performance": str(performance),
-                "predicted_label": predicted_label,
-                "seed": seed 
-            }
-            sample.from_dict(sample_dict) 
+            sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed) 
             samples.append(sample)
         
     return samples 
+
 
 def reseed_individual(seeds):
     # Chooses randomly the seed among the ones that are not covered by the archive
@@ -85,55 +73,67 @@ def reseed_individual(seeds):
     sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed)
     return sample
 
+
 def evaluate_individual(individual, features, goal, archive):
-    evaluator.evaluate(individual, model)
-    if DIVERSITY_METRIC == "LATENT":
+    if individual.predicted_label == None:
+        evaluator.evaluate(individual, model)
+    if DIVERSITY_METRIC == "LATENT" and individual.latent_vector is None:
         individual.compute_latent_vector(encoder)
+    elif DIVERSITY_METRIC == "HEATLAT" and individual.heatmap_latent_vector is None:
+        individual.compute_explanation()
+        individual.compute_heatmap_latent_vector(encoder)
+    elif DIVERSITY_METRIC == "HEATMAP" and individual.explanation is None:
+        individual.compute_explanation()
 
-    elif DIVERSITY_METRIC == "HEATMAP":
-        individual.compute_explanation(model)
+    # diversity computation
+    individual.sparesness, _ = evaluator.evaluate_sparseness(individual, archive.archive)
 
-    evaluator.evaluate_sparseness(individual, archive.archive)
+    if individual.distance_to_target == None:         
+        # original coordinates
+        b = tuple()
 
-    # rescaled coordinates for distance calculation
-    a = tuple()
-    # original coordinates
-    b = tuple()
+        individual.features = {
+                    "moves":  move_distance(individual),
+                    "orientation": orientation_calc(individual,0),
+                    "bitmaps": bitmap_count(individual, BITMAP_THRESHOLD)
+        }
 
-    for ft in features:
-        i = us.feature_simulator(ft[2], individual)
-        a = a + (int(i/ft[1]),)
-        b = b + (i,)
-
-    individual.features = {
-                        "moves":  move_distance(individual),
-                        "orientation": orientation_calc(individual,0),
-                        "bitmaps": bitmap_count(individual, BITMAP_THRESHOLD)
-                    }
+        for ft in features:
+            i = ft.get_coordinate_for(individual)
+            if i != None:
+                b = b + (i,)
+            else:
+                # this individual is out of range and must be discarded
+                individual.distance_to_target = np.inf
+                return (np.inf, )
+        
+        individual.coordinate = b
+        individual.distance_to_target = us.manhattan(b, goal)
     
-    individual.coordinate = b
-    individual.distance_to_target = us.manhattan(a, goal)
-    
-    return individual.ff, individual.distance_to_target, individual.sparseness
+    return (individual.distance_to_target,)
+
 
 def mutate_individual(individual):
     sample = DigitMutator(individual).mutate(x_test)
     return sample
 
-def generate_features():
-    features = []
 
+def generate_features(meta_file):
+    features = []
+    with open(meta_file, 'r') as f:
+        meta = json.load(f)["features"]
+        
     if "Moves" in FEATURES:
-        f3 = ["moves", 5, "move_distance"]
+        f3 = Feature("moves", meta["moves"]["min"], meta["moves"]["max"], "move_distance", 25)
         features.append(f3)
     if "Orientation" in FEATURES:
-        f2 = ["orientation", 10, "orientation_calc"]
+        f2 = Feature("orientation",meta["orientation"]["min"], meta["orientation"]["max"], "orientation_calc", 25)
         features.append(f2)
-    if "Bitmap" in FEATURES:
-        f1 = ["bitmaps", 10, "bitmap_count"]
+    if "Bitmaps" in FEATURES:
+        f1 = Feature("bitmaps",meta["bitmaps"]["min"], meta["bitmaps"]["max"], "bitmap_count", 25)
         features.append(f1)
-
     return features
+  
        
 def goal_acheived(population):
     for sample in population:
@@ -144,99 +144,122 @@ def goal_acheived(population):
 
 toolbox.register("population", generate_initial_pop)
 toolbox.register("evaluate", evaluate_individual)
+toolbox.register("select", tools.selRandom)  
 toolbox.register("mutate", mutate_individual)
-toolbox.register("select", tools.selRandom)
+
+
 
 def main():
-    start_time = datetime.now()
     # initialize archive
-    archive = Archive()
+    archive = Archive(TARGET_SIZE)
 
-    # Generate initial population and feature map
-    print("initial population generation")   
+    features = generate_features(META_FILE)
 
-    features = generate_features()
+
+    # Generate initial population and feature map 
+    log.info(f"Generate initial population")  
+           
 
     population = toolbox.population()
 
+    # Evaluate the individuals
+    invalid_ind = [ind for ind in population]
+
+    fitnesses = [toolbox.evaluate(i, features, GOAL, archive) for i in invalid_ind]
+
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    # Select the next generation population
+    population = toolbox.select(population, POPSIZE)
+
+
     # Begin the generational process
-    condition = True
     gen = 1
 
-    # rescale GOAL to the feature intervals
-    goal = list(GOAL)
-    findex = 0
-    for f in features:
-        goal[findex] = int(GOAL[findex]/f[1])
-        findex += 1
-    goal = tuple(goal)
+    while Timer.has_budget():
+        log.info(f"Iteration: {gen}")
 
-    while condition:
-        print("Gen: ", gen)
-
-        # Vary the population.
-        offspring = [toolbox.clone(ind) for ind in population]
-
-        # Reseeding
-        if len(archive.archive) > 0:
-            seed_range = random.randrange(1, RESEEDUPPERBOUND)
-            candidate_seeds = archive.archived_seeds
-
-            for i in range(seed_range):
-                population[len(population) - i - 1] = reseed_individual(candidate_seeds)
-
-            for i in range(len(population)):
-                if population[i].seed in archive.archived_seeds:
-                    population[i] = reseed_individual(candidate_seeds)
-
+        offspring = []
+        for ind in population:
+            sample = creator.Individual(ind.xml_desc, EXPECTED_LABEL, ind.seed)
+            offspring.append(sample)
+                
         # Mutation.
+        log.info("Mutation")
         for ind in offspring:
             toolbox.mutate(ind)
 
-        # Evaluate the individuals
-        invalid_ind = [ind for ind in population + offspring]
+        # Reseeding
+        if len(archive.archive) > 0:
+            log.info(f"Reseeding")
+            
+            seed_range = random.randrange(1, RESEEDUPPERBOUND)
+            candidate_seeds = archive.archived_seeds
+            log.info(f"Archive seeds: {candidate_seeds}")
 
-        fitnesses = [toolbox.evaluate(i, features, goal, archive) for i in invalid_ind]
+            for i in range(seed_range):
+                ind =  population[len(population) - i - 1]
+                new_ind = reseed_individual(candidate_seeds)
+                population[len(population) - i - 1] = new_ind
+                log.info(f"ind {ind.id} with seed {ind.seed} reseeded by {new_ind.id} with seed {new_ind.seed}")
+
+            for i in range(len(population)):
+                if population[i].seed in archive.archived_seeds:
+                    ind =  population[i]
+                    new_ind = reseed_individual(candidate_seeds)
+                    population[i] = new_ind
+                    log.info(f"ind {ind.id} with seed {ind.seed} reseeded by {new_ind.id} with seed {new_ind.seed}")
+
+        # Evaluate the individuals
+        invalid_ind = [ind for ind in offspring + population]
+
+        fitnesses = [toolbox.evaluate(i, features, GOAL, archive) for i in invalid_ind]
 
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
+            
+        # Update archive
+        for ind in offspring + population:
+            is_added = archive.update_archive(ind, evaluator)
+            # if a new ind added to archive, recompute all the sparsenesses
+            if is_added:
+                archive.recompute_sparseness_archive(evaluator)
 
         # Select the next generation population
         population = toolbox.select(population + offspring, POPSIZE)
 
-        # # random
-        # pop = population + offspring
-        # indexes = random.sample(range(0, len(pop)), POPSIZE)
-
-        # population = []
-        # for i in indexes:
-        #     population.append(pop[i])
-            
-        # Update archive
-        for ind in population:
-            archive.update_archive(ind)
+        for individual in population:
+            log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}), performance {individual.ff} and distance {individual.distance_to_target} selected")
 
         gen += 1
+        log.info(f"Archive: {len(archive.archive)}")
 
-        end_time = datetime.now()
-        elapsed_time = end_time - start_time
-        if elapsed_time.seconds > RUN_TIME: #gen == GEN: #or goal_acheived(population):
-            condition = False
-
-
-    archive.export_archive("logs/"+str(name))
-    print(len(archive.archive))
+    log.info(f"Archive: {len(archive.archive)}")
+    archive.export_archive(name)
     return population
 
 
 if __name__ == "__main__": 
     start_time = datetime.now()
     run = sys.argv[1]
-    name = f"random_{run}-features_{FEATURES[0]}-{FEATURES[1]}-diversity_{DIVERSITY_METRIC}"
+    name = f"logs/{run}-random_-features_{FEATURES[0]}-{FEATURES[1]}-diversity_{DIVERSITY_METRIC}"
+
+    Path(name).mkdir(parents=True, exist_ok=True)
+    config.to_json(name)
+    
+    log_to = f"{name}/logs.txt"
+    debug = f"{name}/debug.txt"
+
+    # Setup logging
+    us.setup_logging(log_to, debug)
+    print("Logging results to " + log_to)
+
     pop = main()
     end_time = datetime.now()
     elapsed_time = end_time - start_time
-    print("elapsed_time:", elapsed_time)
+    log.info("elapsed_time:" + str(elapsed_time))
     print("GAME OVER")
 
-    config.to_json("logs/"+str(name))
+    
+

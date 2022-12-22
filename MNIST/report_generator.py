@@ -1,8 +1,12 @@
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import json
+from config import TARGET_SIZE
+from config import BITMAP_THRESHOLD
+from feature import Feature
 import tensorflow as tf
 from evaluator import Evaluator
-from config import BITMAP_THRESHOLD, EXPECTED_LABEL, MODEL, move_range, orientation_range, bitmaps_range, TARGET_THRESHOLD
+from config import EXPECTED_LABEL, MODEL, META_FILE
 from sklearn.manifold import TSNE
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -49,13 +53,12 @@ encoder1 = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
 encoder2 = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
 evaluator = Evaluator()
 
-num_cells = 100
+
 
 def load_data_all(dst, features):
     inputs = []
     for subdir, dirs, files in os.walk(dst, followlinks=False):
         # Consider only the files that match the pattern
-        if "HEATMAP_LATENT" not in subdir:
             for svg_path in [os.path.join(subdir, f) for f in files if f.endswith(".svg")]:
                 if features in svg_path:  
                     print(".", end='', flush=True)  
@@ -69,9 +72,9 @@ def load_data_all(dst, features):
                         y1 = "LATENT"
                     if "INPUT" in svg_path:
                         y1 = "INPUT"
-                    if "HEATMAP" in svg_path and "LATENT" not in svg_path:
+                    if "HEATMAP" in svg_path:
                         y1 = "HEATMAP"
-                    if "HEATMAP_LATENT" in svg_path:
+                    if "HEATLAT" in svg_path:
                         y1 = "HEATMAP_LATENT" 
     
                                 
@@ -82,8 +85,8 @@ def load_data_all(dst, features):
                     npy_path = svg_path.replace(".svg", ".npy") 
                     image = np.load(npy_path)
 
-
-                    inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"])])
+                    if json_data["misbehaviour"] == True:
+                        inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"])])
    
     return inputs
 
@@ -92,7 +95,8 @@ def load_data(dst, i, approach, div):
     inputs = []
     for subdir, dirs, files in os.walk(dst, followlinks=False):
         # Consider only the files that match the pattern
-        if i+approach in subdir and div in subdir and "HEATMAP_LATENT" not in subdir:
+        if i+approach in subdir and div in subdir:
+            print(subdir)
             for svg_path in [os.path.join(subdir, f) for f in files if f.endswith(".svg")]:  
                     print(".", end='', flush=True)  
 
@@ -101,14 +105,14 @@ def load_data(dst, i, approach, div):
                     elif "nsga2" in svg_path:
                         y2 = "NSGA2"
 
-                    if "LATENT" in svg_path: # and "HEATMAP" not in svg_path:
+                    if "LATENT" in svg_path: 
                         y1 = "LATENT"
                     if "INPUT" in svg_path:
                         y1 = "INPUT"
-                    if "HEATMAP" in svg_path: # and "LATENT" not in svg_path:
+                    if "HEATMAP" in svg_path: 
                         y1 = "HEATMAP"
-                    # if "HEATMAP_LATENT" in svg_path:
-                    #     y1 = "HEATMAP_LATENT"
+                    if "HEATLAT" in svg_path:
+                        y1 = "HEATMAP_LATENT"
      
                                 
                     json_path = svg_path.replace(".svg", ".json")            
@@ -117,8 +121,8 @@ def load_data(dst, i, approach, div):
 
                     npy_path = svg_path.replace(".svg", ".npy") 
                     image = np.load(npy_path)
-
-                    inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"])])
+                    if json_data["misbehaviour"] == True:
+                        inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"])])
 
     return inputs
 
@@ -140,7 +144,7 @@ def plot_tSNE(inputs, _folder, features, div, ii=0):
     df['y'] = y
     df['label'] = df['y'].apply(lambda i: str(i))
 
-    tsne = TSNE(n_components=2, verbose=1, perplexity=0.1, n_iter=3000)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=1, n_iter=3000)
     tsne_results = tsne.fit_transform(df[feat_cols].values)
    
     df['tsne-2d-one'] = tsne_results[:, 0]
@@ -155,7 +159,7 @@ def plot_tSNE(inputs, _folder, features, div, ii=0):
         legend="full",
         alpha=0.3
     )
-    fig.savefig(f"{_folder}/tsne-diag-{features}-{div}-{ii}-0.1.pdf", format='pdf')
+    fig.savefig(f"{_folder}/tsne-diag-{features}-{div}-{ii}-1.pdf", format='pdf')
 
     return df
 
@@ -188,7 +192,7 @@ def compute_tSNE_and_cluster_all(inputs,  _folder, features, div, ii=0, num=10):
 
 
     for i in inputs:
-        if i[3] <= 0.5:
+        if i[3] == 0:
             if i[1] == "GA-INPUT":
                 target_input_ga += 1
             if i[1] == "NSGA2-INPUT":
@@ -222,7 +226,7 @@ def compute_tSNE_and_cluster_all(inputs,  _folder, features, div, ii=0, num=10):
         data_with_clusters['Clusters'] = np.array(labels)
         fig = plt.figure(figsize=(10, 10))
         plt.scatter(data_with_clusters['tsne-2d-one'],data_with_clusters['tsne-2d-two'], c=data_with_clusters['Clusters'], cmap='rainbow')
-        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-0.1.pdf", format='pdf')
+        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-1.pdf", format='pdf')
 
         
         df_nsga2_input = df[df.label == "NSGA2-INPUT"]
@@ -285,7 +289,7 @@ def compute_tSNE_and_cluster_all(inputs,  _folder, features, div, ii=0, num=10):
 
 def find_best_div_approach(dst, feature_combinations):
 
-    evaluation_area =  ["target_cell_in_white"] #, "target_cell_in_dark", "target_cell_in_white"] #, ["target_cell_in_dark"], ["target_cell_in_gray"] 
+    evaluation_area =  ["target_cell_in_dark", "target_cell_in_grey", "target_cell_in_white"] #, ["target_cell_in_dark"], [] 
 
     for evaluate in evaluation_area:        
         for features in feature_combinations:
@@ -316,7 +320,25 @@ def find_best_div_approach(dst, feature_combinations):
                         (json.dump(dict_data, f, sort_keys=True, indent=4))
 
 
-def compute_targets_for_dh(dst, goal, features, threshold, metric):
+def generate_features(FEATURES):
+    features = []
+    with open(META_FILE, 'r') as f:
+        meta = json.load(f)["features"]
+        
+    if "Moves" in FEATURES:
+        f3 = Feature("moves", meta["moves"]["min"], meta["moves"]["max"], "move_distance", 25)
+        features.append(f3)
+    if "Orientation" in FEATURES:
+        f2 = Feature("orientation",meta["orientation"]["min"], meta["orientation"]["max"], "orientation_calc", 25)
+        features.append(f2)
+    if "Bitmaps" in FEATURES:
+        f1 = Feature("bitmaps",meta["bitmaps"]["min"], meta["bitmaps"]["max"], "bitmap_count", 25)
+        features.append(f1)
+    return features
+ 
+
+def compute_targets_for_dh(dst, goal, features, metric):
+    fts = generate_features(features)
     count = 0
     samples = []
     for subdir, dirs, files in os.walk(dst, followlinks=False):
@@ -339,100 +361,137 @@ def compute_targets_for_dh(dst, goal, features, threshold, metric):
             sample = Sample(xml_desc, EXPECTED_LABEL, int(ind["seed"]))
             sample.purified = img
             sample.predicted_label = ind["predicted_label"]
+            sample.ff = float(ind["performance"])
 
-            if features == "Moves-Bitmaps":
-                cell = (ind["features"]["moves"]/move_range, ind["features"]["bitmaps"]/bitmaps_range)
 
-            if features == "Orientation-Bitmaps":
-                cell = (ind["features"]["orientation"]/orientation_range, ind["features"]["bitmaps"]/bitmaps_range)
+            sample.features["moves"] = ind["features"]["moves"]
+            sample.features["bitmaps"] =  ind["features"]["bitmaps"]
+            sample.features["orientation"] = ind["features"]["orientation"]
 
-            if features == "Orientation-Moves":
-                cell = (ind["features"]["moves"]/move_range, ind["features"]["orientation"]/orientation_range)
+    
+            b = tuple()
+            for ft in fts:
+                i = ft.get_coordinate_for(sample)
+                if i != None:
+                    b = b + (i,)
+                else:
+                    b = np.inf
             
-            sample.distance_to_target = us.manhattan(cell, goal)
-            if sample.distance_to_target <= TARGET_THRESHOLD and sample.is_misbehavior() == True:
+            sample.distance_to_target = us.manhattan(b, goal)
+            if sample.distance_to_target <= 1:
                 # sample.compute_explanation()
-                sample.compute_latent_vector(encoder1)
+                # sample.compute_latent_vector(encoder1)
                 # sample.compute_heatmap_latent_vector(encoder2)
+                print(".", end='', flush=True)
                 samples.append(sample)
                 count += 1
 
-    samples = sorted(samples, key=lambda x: x.distance_to_target)
     archive = []
     for sample in samples:
         if len(archive) == 0:
+            sample.sparseness = np.inf
             archive.append(sample)
-        elif all(us.get_distance_by_metric(a, sample, metric)> threshold for a in archive):
-            archive.append(sample)
+        else:
+            dmin = np.inf
+            for idx in range(len(archive)):
+                a = archive[idx]
+                dist = us.get_distance_by_metric(a, sample, metric)
+                if dist < dmin:
+                    dmin = dist
+                    idx_min = idx
+
+            sample.sparseness = dmin
+            if len(archive)/TARGET_SIZE < 1:               
+                if dmin > 0:                  
+                    archive.append(sample)
+                    archive[idx_min].sparseness = dmin
+            else:
+                c = sorted(archive, key=lambda x: (x.distance_to_target, -x.sparseness), reverse=True)[0]
+                if c.distance_to_target > sample.distance_to_target:
+                    archive.append(sample)
+                    archive[idx_min].sparseness = dmin
+                elif c.distance_to_target == sample.distance_to_target:
+                    # ind has better performance
+                    if sample.ff < c.ff:
+                        archive.append(sample)
+                        archive[idx_min].sparseness = dmin
+                    # c and ind have the same performance
+                    elif sample.ff == c.ff:
+                        # ind has better sparseness                        
+                        if dmin > c.sparseness:
+                            archive.append(sample)
+                            archive[idx_min].sparseness = dmin
+
+
 
     target_samples = []
     for sample in archive:
-        print(".", end='', flush=True)
-        target_samples.append([sample.purified, f"DeepHyperion", sample.predicted_label, sample.distance_to_target])
+        if sample.is_misbehavior() == True:
+            target_samples.append([sample.purified, f"DeepHyperion", sample.predicted_label, sample.distance_to_target])
 
     print("DeepHyperion", features, len(target_samples))
     return target_samples
 
 
-def compute_targets_for_dlf(dst, goal, features, threshold, metric):
-    count = 0
-    samples = []
-    # for subdir, dirs, files in os.walk(dst, followlinks=False):
-    #     for json_path in [os.path.join(subdir, f) for f in files if
-    #                     (
-    #                         f.startswith("mbr") and
-    #                         f.endswith(".json")
-    #                     )]:
-    #         with open(json_path) as jf:
-    #             ind = json.load(jf)
+# def compute_targets_for_dlf(dst, goal, features, threshold, metric):
+#     count = 0
+#     samples = []
+#     # for subdir, dirs, files in os.walk(dst, followlinks=False):
+#     #     for json_path in [os.path.join(subdir, f) for f in files if
+#     #                     (
+#     #                         f.startswith("mbr") and
+#     #                         f.endswith(".json")
+#     #                     )]:
+#     #         with open(json_path) as jf:
+#     #             ind = json.load(jf)
 
-    #         npy_path = json_path.replace(".json", ".npy")
-    #         img = np.load(npy_path)
+#     #         npy_path = json_path.replace(".json", ".npy")
+#     #         img = np.load(npy_path)
 
-    #         xml_desc = (ind["xml_desc"][2:len(ind["xml_desc"])-1]).replace("<?xml version=\\'1.0\\' encoding=\\'utf8\\'?>\\n", "")
+#     #         xml_desc = (ind["xml_desc"][2:len(ind["xml_desc"])-1]).replace("<?xml version=\\'1.0\\' encoding=\\'utf8\\'?>\\n", "")
             
             
-    #         sample = Sample(xml_desc, EXPECTED_LABEL, int(ind["seed"]))
-    #         sample.purified = img
-    #         evaluator.evaluate(sample, model)
+#     #         sample = Sample(xml_desc, EXPECTED_LABEL, int(ind["seed"]))
+#     #         sample.purified = img
+#     #         evaluator.evaluate(sample, model)
 
 
-    #         bitmaps = us.bitmap_count(sample, BITMAP_THRESHOLD)
-    #         moves = us.move_distance(sample)
-    #         orientation = us.orientation_calc(sample, 0)
+#     #         bitmaps = us.bitmap_count(sample, BITMAP_THRESHOLD)
+#     #         moves = us.move_distance(sample)
+#     #         orientation = us.orientation_calc(sample, 0)
 
-    #         if features == "Moves-Bitmaps":
-    #             cell = (moves/move_range, bitmaps/bitmaps_range)
+#     #         if features == "Moves-Bitmaps":
+#     #             cell = (moves/move_range, bitmaps/bitmaps_range)
 
-    #         if features == "Orientation-Bitmaps":
-    #             cell = (orientation/orientation_range, bitmaps/bitmaps_range)
+#     #         if features == "Orientation-Bitmaps":
+#     #             cell = (orientation/orientation_range, bitmaps/bitmaps_range)
 
-    #         if features == "Orientation-Moves":
-    #             cell = (moves/move_range, orientation/orientation_range)
+#     #         if features == "Moves-Orientation":
+#     #             cell = (moves/move_range, orientation/orientation_range)
             
-    #         sample.distance_to_target = us.manhattan(cell, goal)
-    #         if sample.distance_to_target <= TARGET_THRESHOLD and sample.is_misbehavior() == True:
-    #             # sample.compute_explanation()
-    #             sample.compute_latent_vector(encoder1)
-    #             # sample.compute_heatmap_latent_vector(encoder2)
-    #             samples.append(sample)
-    #             count += 1
+#     #         sample.distance_to_target = us.manhattan(cell, goal)
+#     #         if sample.distance_to_target <= TARGET_THRESHOLD and sample.is_misbehavior() == True:
+#     #             # sample.compute_explanation()
+#     #             sample.compute_latent_vector(encoder1)
+#     #             # sample.compute_heatmap_latent_vector(encoder2)
+#     #             samples.append(sample)
+#     #             count += 1
 
-    # samples = sorted(samples, key=lambda x: x.distance_to_target)
-    # archive = []
-    # for sample in samples:
-    #     if len(archive) == 0:
-    #         archive.append(sample)
-    #     elif all(us.get_distance_by_metric(a, sample, metric)> threshold for a in archive):
-    #         archive.append(sample)
+#     # samples = sorted(samples, key=lambda x: x.distance_to_target)
+#     # archive = []
+#     # for sample in samples:
+#     #     if len(archive) == 0:
+#     #         archive.append(sample)
+#     #     elif all(us.get_distance_by_metric(a, sample, metric)> threshold for a in archive):
+#     #         archive.append(sample)
 
-    # target_samples = []
-    # for sample in archive:
-    #     print(".", end='', flush=True)
-    #     target_samples.append([sample.purified, f"DLFuzz", sample.predicted_label, sample.distance_to_target])
+#     # target_samples = []
+#     # for sample in archive:
+#     #     print(".", end='', flush=True)
+#     #     target_samples.append([sample.purified, f"DLFuzz", sample.predicted_label, sample.distance_to_target])
 
-    # print("DLFuzz", features, len(target_samples))
-    return []#target_samples
+#     # print("DLFuzz", features, len(target_samples))
+#     return []#target_samples
 
 
 def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div, ii=0, num=10):
@@ -450,8 +509,8 @@ def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div,
     dist_dlfuzz = 0.0
 
     for i in inputs:
-        if i[3] <= 0.5:
-            if i[1] == f"NSGA2-LATENT":
+        if i[3] == 0:
+            if i[1] == f"{approach}-{div}":
                 target_deepatash += 1
             if i[1] == "DLFuzz":
                 target_dlfuzz += 1
@@ -473,10 +532,10 @@ def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div,
         data_with_clusters['Clusters'] = np.array(labels)
         fig = plt.figure(figsize=(10, 10))
         plt.scatter(data_with_clusters['tsne-2d-one'],data_with_clusters['tsne-2d-two'], c=data_with_clusters['Clusters'], cmap='rainbow')
-        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-0.1.pdf", format='pdf')
+        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-1.pdf", format='pdf')
 
         
-        df_da = df[df.label == "NSGA2-LATENT"]
+        df_da = df[df.label == f"{approach}-{div}"]
         df_dh = df[df.label =="DeepHyperion"]
         df_dlf = df[df.label =="DLFuzz"]
 
@@ -494,7 +553,7 @@ def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div,
     
     else:
         for i in inputs:
-            if i[1] == f"NSGA2-LATENT":
+            if i[1] == f"{approach}-{div}":
                 deepatash += 1
                 dist_deepatash = 1.0
             if i[1] == "DLFuzz":
@@ -513,16 +572,8 @@ def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div,
 
 def compare_with_dh_dlf(approach, div, features, target_area):
 
-    if div == "HEATMAP":
-        threshold = 0.09
-    elif div == "INPUT":
-        threshold = 4.8
-    elif div == "LATENT":
-        threshold = 0.01
-    elif div == "HEATMAP_LATENT":
-        threshold = 0.02
 
-    result_folder = f"../experiments/data/mnist/nsga2/{target_area}"
+    result_folder = f"../experiments/data/mnist/{target_area}"
 
     
     for feature in features:
@@ -540,20 +591,20 @@ def compare_with_dh_dlf(approach, div, features, target_area):
             # load DH data
             for subdir, dirs, files in os.walk(dst_dh, followlinks=False):
                 if str(i)+"-" in subdir and "all" in subdir:
-                    inputs_dh = compute_targets_for_dh(subdir, feature[1], feature[0], threshold, div)
+                    inputs_dh = compute_targets_for_dh(subdir, feature[1], feature[0], div)
             
             # load DLFuzz data
-            for subdir, dirs, files in os.walk(dst_dlf, followlinks=False):
-                if str(i)+"-" in subdir:
-                    inputs_dlf = compute_targets_for_dlf(dst_dlf, feature[1], feature[0], threshold, div)
+            # for subdir, dirs, files in os.walk(dst_dlf, followlinks=False):
+            #     if str(i)+"-" in subdir:
+            #         inputs_dlf = compute_targets_for_dlf(dst_dlf, feature[1], feature[0], div)
 
 
-            # if "ga" == approach:
-            #     approach = "GA"
-            # elif "nsga2" == approach:
-            #     approach = "NSGA2"
+            if "ga" == approach:
+                approach2 = "GA"
+            elif "nsga2" == approach:
+                approach2 = "NSGA2"
 
-            list_data = compute_tSNE_cluster_vs_dh_and_dlf(inputs_dh+inputs_dlf+inputs_focused, result_folder, feature[0], approach, div, str(i))
+            list_data = compute_tSNE_cluster_vs_dh_and_dlf(inputs_dh+inputs_focused, result_folder, feature[0], approach2, div, str(i))
 
 
             for data in list_data:
@@ -575,18 +626,17 @@ def compare_with_dh_dlf(approach, div, features, target_area):
 
 if __name__ == "__main__": 
 
-    feature_combinations = [ "Orientation-Moves", "Moves-Bitmaps", "Orientation-Bitmaps"]
+    feature_combinations = [ "Moves-Bitmaps", "Orientation-Bitmaps", "Moves-Orientation"]
     dst = f"../experiments/data/mnist/DeepAtash"
     find_best_div_approach(dst, feature_combinations)
 
 
-    # features = [("Moves-Bitmaps", (11/move_range, 158/bitmaps_range)), ("Orientation-Bitmaps",(-30/orientation_range, 60/bitmaps_range)), ("Orientation-Moves",(0/move_range, 160/orientation_range))]
-    # compare_with_dh_dlf("nsga2", "LATENT", features, "target_cell_in_dark")
+    # features = [("Orientation-Bitmaps", (4, 1)),("Moves-Bitmaps", (6, 0)), ("Moves-Orientation", (7, 5))]
+    # compare_with_dh_dlf("ga", "INPUT", features, "target_cell_in_dark")
 
+    # features = [("Orientation-Bitmaps",(19, 4)), ("Moves-Bitmaps", (21,9)),  ("Moves-Orientation", (14, 12))]
+    # compare_with_dh_dlf("ga", "INPUT", features, "target_cell_in_grey")
 
-    # features = [("Moves-Bitmaps", (10/move_range, 124/bitmaps_range)), ("Orientation-Bitmaps",(-54/orientation_range, 18/bitmaps_range)), ("Orientation-Moves",(11/move_range, -40/orientation_range))]
-    # compare_with_dh_dlf("nsga2", "LATENT", features, "target_cell_in_gray")
+    # features = [("Orientation-Bitmaps",(10, 2)), ("Moves-Bitmaps", (11,3)), ("Moves-Orientation", (7, 5))]
+    # compare_with_dh_dlf("ga", "INPUT", features, "target_cell_in_white")
 
-
-    # features = [("Moves-Bitmaps", (13/move_range, 165/bitmaps_range)), ("Orientation-Bitmaps",(160/orientation_range, 60/bitmaps_range)), ("Orientation-Moves",(1/move_range, -175/orientation_range))]
-    # compare_with_dh_dlf("nsga2", "LATENT", features, "target_cell_in_white")

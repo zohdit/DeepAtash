@@ -45,15 +45,15 @@ class Feature:
 
         # TODO Check whether the sample has the feature
         value = sample.features[self.feature_name]
-
         if value < self.min_value:
             log.info(f"Sample %s has value %s below the min value %s for feature %s", sample.id, value, self.min_value, self.feature_name)
-            return False
+            return None
         elif value > self.max_value:
             log.info(f"Sample %s has value %s above the max value %s for feature %s",  sample.id, value, self.max_value, self.feature_name)
-            return False
+            return None
 
-        return np.digitize(value, self.bins, right=False)
+        coordinate = np.digitize(value, self.bins, right=False) - 1
+        return coordinate
 
     def get_bins_labels(self):
         """

@@ -23,16 +23,18 @@ class Archive:
             if len(self.archive) == 0:
                 log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['moves']}, {ind.features['orientation']}, {ind.features['bitmaps']}), performance {ind.ff}, sparseness {ind.sparseness} and distance {ind.distance_to_target} added to archive")
                 self.archive.append(ind)
+                self.archived_seeds.add(ind.seed)
                 flag = False
             else:
                 # Find the member of the archive that is closest to the candidate.
-                d_min, closest_ind =  evaluator.evaluate_sparseness(ind, self.archive)
+                d_min, _ = evaluator.evaluate_sparseness(ind, self.archive)
                 # archive is not full
                 if len(self.archive)/self.target_size < 1:
                     # not the same sparseness
                     if d_min > 0:                    
                         log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['moves']}, {ind.features['orientation']}, {ind.features['bitmaps']}), performance {ind.ff}, sparseness {ind.sparseness} and distance {ind.distance_to_target} added to archive")
                         self.archive.append(ind)
+                        self.archived_seeds.add(ind.seed)
                         flag = True
                 
                 # archive is full
@@ -41,27 +43,33 @@ class Archive:
                     c = sorted(self.archive, key=lambda x: (x.distance_to_target, -x.sparseness), reverse=True)[0]
                     if c.distance_to_target > ind.distance_to_target:
                         log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['moves']}, {ind.features['orientation']}, {ind.features['bitmaps']}), performance {ind.ff}, sparseness {ind.sparseness} and distance {ind.distance_to_target} added to archive")
-                        log.info(f"ind {c.id} with seed {c.seed} and ({c.features['moves']}, {c.features['orientation']}, {c.features['bitmaps']}), performance {closest_ind.ff}, sparseness {closest_ind.sparseness} and distance {c.distance_to_target} removed from archive")
-                        self.archive.append(ind)
+                        log.info(f"ind {c.id} with seed {c.seed} and ({c.features['moves']}, {c.features['orientation']}, {c.features['bitmaps']}), performance {c.ff}, sparseness {c.sparseness} and distance {c.distance_to_target} removed from archive")
                         self.archive.remove(c)
+                        self.archive.append(ind)
+                        self.archived_seeds.add(ind.seed)
                         flag = True
                     elif c.distance_to_target == ind.distance_to_target:
-                        # ind has better sparseness
-                        if d_min > c.sparseness:
+                        # ind has better performance
+                        if ind.ff < c.ff:
                             log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['moves']}, {ind.features['orientation']}, {ind.features['bitmaps']}), performance {ind.ff}, sparseness {ind.sparseness} and distance {ind.distance_to_target} added to archive")
-                            log.info(f"ind {c.id} with seed {c.seed} and ({c.features['moves']}, {c.features['orientation']}, {c.features['bitmaps']}), performance {closest_ind.ff}, sparseness {closest_ind.sparseness} and distance {c.distance_to_target} removed from archive")
+                            log.info(f"ind {c.id} with seed {c.seed} and ({c.features['moves']}, {c.features['orientation']}, {c.features['bitmaps']}), performance {c.ff}, sparseness {c.sparseness} and distance {c.distance_to_target} removed from archive")
+                            self.archive.remove(c)                                
                             self.archive.append(ind)
-                            self.archive.remove(c)
+                            self.archived_seeds.add(ind.seed)
                             flag = True
-                            # c and ind have the same sparseness
-                        elif d_min / c.sparseness < 0.05: # epsilon
-                            # ind has better performance
-                            if ind.ff < c.ff:
+                        # c and ind have the same performance
+                        elif ind.ff == c.ff:
+                            # ind has better sparseness                        
+                            if d_min > c.sparseness:
                                 log.info(f"ind {ind.id} with seed {ind.seed} and ({ind.features['moves']}, {ind.features['orientation']}, {ind.features['bitmaps']}), performance {ind.ff}, sparseness {ind.sparseness} and distance {ind.distance_to_target} added to archive")
-                                log.info(f"ind {c.id} with seed {c.seed} and ({c.features['moves']}, {c.features['orientation']}, {c.features['bitmaps']}), performance {closest_ind.ff}, sparseness {closest_ind.sparseness} and distance {c.distance_to_target} removed from archive")
+                                log.info(f"ind {c.id} with seed {c.seed} and ({c.features['moves']}, {c.features['orientation']}, {c.features['bitmaps']}), performance {c.ff}, sparseness {c.sparseness} and distance {c.distance_to_target} removed from archive")
+                                self.archive.remove(c)                            
                                 self.archive.append(ind)
-                                self.archive.remove(c)
+                                self.archived_seeds.add(ind.seed)
                                 flag = True
+                                
+                        
+
 
         return flag
 

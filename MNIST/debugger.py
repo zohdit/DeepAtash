@@ -9,8 +9,7 @@ evaluation_area = ["target_cell_in_dark", "target_cell_in_gray", "target_cell_in
 count = 0
 total = 0
 
-for evaluate in evaluation_area:
-    print(evaluate)    
+for evaluate in evaluation_area:  
     for features in feature_combinations:
         print(features)
         for i in range(1, 11):

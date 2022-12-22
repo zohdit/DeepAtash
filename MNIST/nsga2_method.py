@@ -1,4 +1,8 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 from datetime import datetime
+import json
 from pickle import POP
 import sys
 import random
@@ -14,7 +18,7 @@ import numpy as np
 # local
 import config
 from archive import Archive
-from config import EXPECTED_LABEL, BITMAP_THRESHOLD, FEATURES, RUN_TIME, POPSIZE, GOAL, RESEEDUPPERBOUND, MODEL, DIVERSITY_METRIC, RUN_TIME
+from config import EXPECTED_LABEL, BITMAP_THRESHOLD, FEATURES, RUN_TIME, POPSIZE, GOAL, RESEEDUPPERBOUND, MODEL, DIVERSITY_METRIC, TARGET_SIZE, META_FILE
 from digit_mutator import DigitMutator
 from sample import Sample
 import utils as us
@@ -43,7 +47,7 @@ if DIVERSITY_METRIC == "LATENT":
     encoder = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
     decoder = tf.keras.models.load_model("models/vae_decoder_test", compile=False)
 
-if DIVERSITY_METRIC == "HEATMAP_LATENT":
+if DIVERSITY_METRIC == "HEATLAT":
     encoder = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
     decoder = tf.keras.models.load_model("models/vaeh_decoder", compile=False)
 
@@ -80,12 +84,11 @@ def evaluate_individual(individual, features, goal, archive):
     elif DIVERSITY_METRIC == "HEATMAP" and individual.explanation is None:
         individual.compute_explanation()
 
-    elif DIVERSITY_METRIC == "HEATMAP_LATENT" and individual.heatmap_latent_vector is None:
+    elif DIVERSITY_METRIC == "HEATLAT" and individual.heatmap_latent_vector is None:
         individual.compute_explanation()
         individual.compute_heatmap_latent_vector(encoder)
 
     # diversity computation
-    print("evaluate")
     individual.sparseness, _ = evaluator.evaluate_sparseness(individual, archive.archive)
 
     if individual.distance_to_target == None:         
@@ -100,35 +103,37 @@ def evaluate_individual(individual, features, goal, archive):
 
         for ft in features:
             i = ft.get_coordinate_for(individual)
-            if i != False:
+            if i != None:
                 b = b + (i,)
             else:
                 # this individual is out of range and must be discarded
                 individual.distance_to_target = np.inf
-                return (np.inf, )
+                return (np.inf, np.inf, 0)
         
         individual.coordinate = b
         individual.distance_to_target = us.manhattan(b, goal)
     
     log.info(f"ind {individual.id} with seed {individual.seed} and ({individual.features['moves']}, {individual.features['orientation']}, {individual.features['bitmaps']}), performance {individual.ff} and distance {individual.distance_to_target} evaluated")
 
-    return individual.ff, individual.distance_to_target, individual.sparseness
+    return  individual.distance_to_target, individual.ff, individual.sparseness
 
 def mutate_individual(individual):
     sample = DigitMutator(individual).mutate(x_test)
     return sample
 
-def generate_features():
+def generate_features(meta_file):
     features = []
-
+    with open(meta_file, 'r') as f:
+        meta = json.load(f)["features"]
+        
     if "Moves" in FEATURES:
-        f3 = Feature("moves", 0.0, 34.0, "move_distance", 25)
+        f3 = Feature("moves", meta["moves"]["min"], meta["moves"]["max"], "move_distance", 25)
         features.append(f3)
     if "Orientation" in FEATURES:
-        f2 = Feature("orientation", -503.0, 642.0, "orientation_calc", 25)
+        f2 = Feature("orientation",meta["orientation"]["min"], meta["orientation"]["max"], "orientation_calc", 25)
         features.append(f2)
     if "Bitmaps" in FEATURES:
-        f1 = Feature("bitmaps", 0.0, 211.0, "bitmap_count", 25)
+        f1 = Feature("bitmaps",meta["bitmaps"]["min"], meta["bitmaps"]["max"], "bitmap_count", 25)
         features.append(f1)
     return features
        
@@ -148,9 +153,9 @@ toolbox.register("mutate", mutate_individual)
 def main():
     start_time = datetime.now()
     # initialize archive
-    archive = Archive()
+    archive = Archive(TARGET_SIZE)
 
-    features = generate_features()
+    features = generate_features(META_FILE)
 
     # Generate initial population and feature map 
     log.info(f"Generate initial population")  
@@ -176,6 +181,7 @@ def main():
 
     while condition:
         log.info(f"Iteration: {gen}")
+        
 
         offspring = []
         for ind in population:
@@ -209,7 +215,6 @@ def main():
                     population[i] = new_ind
                     log.info(f"ind {ind.id} with seed {ind.seed} reseeded by {new_ind.id} with seed {new_ind.seed}")
 
-                    
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
 

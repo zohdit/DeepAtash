@@ -7,7 +7,7 @@ import sys
 import tensorflow as tf
 
 #from tensorflow import keras
-from config import BITMAP_THRESHOLD, DIVERSITY_METRIC, XAI_METHOD
+from config import BITMAP_THRESHOLD, DIVERSITY_METRIC
 import numpy as np
 # local imports
 from skimage.color import rgb2gray
@@ -54,7 +54,7 @@ def get_distance(ind1, ind2):
         distance = euclidean(ind1.explanation, ind2.explanation)
 
 
-    elif DIVERSITY_METRIC == "HEATMAP_LATENT":
+    elif DIVERSITY_METRIC == "HEATLAT":
         # latent space
         distance = euclidean(ind1.heatmap_latent_vector, ind2.heatmap_latent_vector)
     
@@ -79,7 +79,7 @@ def get_distance_by_metric(ind1, ind2, metric):
         # heatmap space
         distance = euclidean(ind1.explanation, ind2.explanation)
 
-    elif metric == "HEATMAP_LATENT":
+    elif metric == "HEATLAT":
         # latent space
         distance = euclidean(ind1.heatmap_latent_vector, ind2.heatmap_latent_vector)
     

@@ -6,35 +6,31 @@ EXPECTED_LABEL   = 5
 # K-nearest
 K = 1
 
-GEN              = 1000000
 POPSIZE          = 100
+
 IMG_SIZE         = 28
 NUM_CLASSES      = 10
-MODEL            = 'models/cnnClassifierTest.h5'
+MODEL            = 'models/mnist_classifier.h5'
 BITMAP_THRESHOLD = 0.5
-FEATURES         = ["Moves", "Bitmaps"]#, "Orientation", "Moves", "Bitmaps"
-
-TARGET_SIZE     = 50
+FEATURES         = ["Moves", "Orientation"]#, "Orientation", "Moves", "Bitmaps"
 
 
 NUM_CELLS        = 25
 
-XAI_METHOD       = "IG" # "IG" or "CEM"
-GOAL             = (11, 158) 
+GOAL             = (17, 10)
 
 
 
-# goal cell for white area mov-lum (13, 165) or-lum (160, 60) move-or (1, -175)  
-# goal cell for gray area mov-lum (10, 124) or-lum (-54, 18) move-or (11, -40) 
-# goal cell for dark area mov-lum (11, 158) or-lum (-30, 16) move-or (0, 160)
+# goal cell for white area mov-lum (11, 3)  or-lum (10, 2) move-or  (17, 10)
+# goal cell for gray area mov-lum (21, 9) or-lum (19, 4) move-or (14, 12)
+# goal cell for dark area mov-lum (6, 0) or-lum (4, 1) move-or (7, 5)
 
-DIVERSITY_METRIC = "LATENT" # "INPUT" "HEATMAP" "LATENT" "HEATMAP_LATENT"
-ARCHIVE_THRESHOLD = 0.01 # 4.8 for INPUT, 0.01 for LATENT, 0.09 IG HEATMAP, 0.02 HEATMAP_LATENT
+DIVERSITY_METRIC = "LATENT" # "INPUT" "HEATMAP" "LATENT" "HEATLAT"
 TARGET_THRESHOLD = 1
 
+TARGET_SIZE     = 81
 
 RESEEDUPPERBOUND = 10
-MAX_BUCKET_SIZE = 50
 RUN_TIME = 3600
 
 # mutation operator probability
@@ -43,7 +39,7 @@ MUTOFPROB        = 0.5
 MUTUPPERBOUND    = 0.6
 MUTLOWERBOUND    = 0.01
 
-
+META_FILE       = "/mnt/d/tara/DeepAtash/experiments/data/mnist/DeepHyperion/meta.json"
 
 
 def to_json(folder):
@@ -55,11 +51,8 @@ def to_json(folder):
         'features': str(FEATURES),
         'pop size': str(POPSIZE),
         'diversity': str(DIVERSITY_METRIC),
-        'archive threshold': str(ARCHIVE_THRESHOLD), 
-        'target cell': str(GOAL), 
-        'move_range': move_range,
-        'bitmaps_range': bitmaps_range,
-        'orientation_range': orientation_range        
+        'archive size': str(TARGET_SIZE), 
+        'target cell': str(GOAL),        
     }
 
     filedest = join(folder, "config.json")
