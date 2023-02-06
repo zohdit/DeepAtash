@@ -68,7 +68,7 @@ def extract_candidate_targets(dst, feature):
 
 if __name__ == "__main__": 
     # you need to compute coverage maps of DeepHyperion and stats before hand
-    dst = "/mnt/d/tara/DeepAtash/experiments/data/mnist/DeepHyperion"
+    dst = "../experiments/data/mnist/DeepHyperion"
     features = ["moves-bitmaps","orientation-bitmaps", "moves-orientation"]
     
     for feature in features:

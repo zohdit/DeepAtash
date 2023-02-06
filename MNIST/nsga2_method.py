@@ -25,7 +25,7 @@ import utils as us
 from utils import move_distance, bitmap_count, orientation_calc
 import vectorization_tools
 from feature import Feature
-
+from config import INITIAL_SEED
 
 # DEAP framework setup.
 toolbox = base.Toolbox()
@@ -52,16 +52,48 @@ if DIVERSITY_METRIC == "HEATLAT":
     decoder = tf.keras.models.load_model("models/vaeh_decoder", compile=False)
 
 
-def generate_initial_pop():
+def generate_initial_pop(features, goal):
     samples = []
     for seed in range(len(x_test)):
         if y_test[seed] == EXPECTED_LABEL:
             starting_seeds.append(seed)
-            xml_desc = vectorization_tools.vectorize(x_test[seed])
-            sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed) 
-            samples.append(sample)
+
+    random.shuffle(starting_seeds)
+    
+    for seed in starting_seeds:
+        b = tuple()
+        xml_desc = vectorization_tools.vectorize(x_test[seed])
+        individual = creator.Individual(xml_desc, EXPECTED_LABEL, seed)
+        individual.features = {
+                    "moves":  move_distance(individual),
+                    "orientation": orientation_calc(individual,0),
+                    "bitmaps": bitmap_count(individual, BITMAP_THRESHOLD)
+        }
+
+        for ft in features:
+            i = ft.get_coordinate_for(individual)
+            if i != None:
+                b = b + (i,)
+            else:
+                # this individual is out of range and must be discarded
+                individual.distance_to_target = np.inf
+                b = None
+                break
+
+        if b != None:
+            individual.coordinate = b
+            individual.distance_to_target = us.manhattan(b, goal)
         
-    return samples 
+        if individual.distance_to_target < 5:
+            samples.append(individual) 
+
+    log.info(f"initial seeds: {len(samples)}")
+    if len(samples) < INITIAL_SEED:
+        return samples
+    else: 
+        return samples[:INITIAL_SEED]   
+     
+
 
 def reseed_individual(seeds):
     # Chooses randomly the seed among the ones that are not covered by the archive
@@ -161,7 +193,7 @@ def main():
     log.info(f"Generate initial population")  
            
 
-    population = toolbox.population()
+    population = toolbox.population(features, GOAL)
 
     # Evaluate the individuals
     invalid_ind = [ind for ind in population]

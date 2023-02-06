@@ -1,8 +1,6 @@
 
 import tensorflow as tf
 from config import MODEL
-
-from alibi.explainers import CEM
 from alibi.explainers import IntegratedGradients
 
 mnist = tf.keras.datasets.mnist

@@ -1,25 +1,34 @@
 import os
+import sys
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import json
-from config import TARGET_SIZE
-from config import BITMAP_THRESHOLD
-from feature import Feature
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from typing import Tuple, List
+import re
+from pathlib import Path
 import tensorflow as tf
-from evaluator import Evaluator
-from config import EXPECTED_LABEL, MODEL, META_FILE
 from sklearn.manifold import TSNE
 import matplotlib
+from pathlib import Path
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+
+# local
+from config import TARGET_SIZE, EXPECTED_LABEL, MODEL, META_FILE
+from feature import Feature
+from evaluator import Evaluator
 import utils as us
 from sample import Sample
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
-from typing import Tuple, List
+
+model = tf.keras.models.load_model(MODEL)
+encoder1 = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
+encoder2 = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
+evaluator = Evaluator()
 
 def cluster_data(data: np.ndarray, n_clusters_interval: Tuple[int, int]) -> Tuple[List[int], List[float]]:
     """
@@ -48,16 +57,15 @@ def cluster_data(data: np.ndarray, n_clusters_interval: Tuple[int, int]) -> Tupl
     return clusterer.labels_, clusterer.cluster_centers_
 
 
-model = tf.keras.models.load_model(MODEL)
-encoder1 = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
-encoder2 = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
-evaluator = Evaluator()
-
-
-
 def load_data_all(dst, features):
+    """
+    :param dst: source folder for DeepAtash experiments
+    :param features: feature combinations to consider
+    :return: list of misbehaviours in the archives of DeepAtash with different configurations
+    """
     inputs = []
-    for subdir, dirs, files in os.walk(dst, followlinks=False):
+    inputs_target = []
+    for subdir, _, files in os.walk(dst, followlinks=False):
         # Consider only the files that match the pattern
             for svg_path in [os.path.join(subdir, f) for f in files if f.endswith(".svg")]:
                 if features in svg_path:  
@@ -74,8 +82,7 @@ def load_data_all(dst, features):
                         y1 = "INPUT"
                     if "HEATMAP" in svg_path:
                         y1 = "HEATMAP"
-                    if "HEATLAT" in svg_path:
-                        y1 = "HEATMAP_LATENT" 
+
     
                                 
                     json_path = svg_path.replace(".svg", ".json")            
@@ -86,14 +93,24 @@ def load_data_all(dst, features):
                     image = np.load(npy_path)
 
                     if json_data["misbehaviour"] == True:
-                        inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"])])
+                        inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"]), json_data["elapsed"]])
+                        if float(json_data["distance to target"]) == 0:
+                            inputs_target.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"]), json_data["elapsed"]])
    
-    return inputs
+    return inputs, inputs_target
 
 
 def load_data(dst, i, approach, div):
+    """
+    :param dst: source folder for DeepAtash experiments
+    :param i: run number
+    :param approach: ga or nsga2
+    :param div: input, latent or heatmpa
+    :return: list of misbehaviours in the archives of DeepAtash with specified configurations
+    """
     inputs = []
-    for subdir, dirs, files in os.walk(dst, followlinks=False):
+    inputs_target = []
+    for subdir, _, files in os.walk(dst, followlinks=False):
         # Consider only the files that match the pattern
         if i+approach in subdir and div in subdir:
             print(subdir)
@@ -111,8 +128,7 @@ def load_data(dst, i, approach, div):
                         y1 = "INPUT"
                     if "HEATMAP" in svg_path: 
                         y1 = "HEATMAP"
-                    if "HEATLAT" in svg_path:
-                        y1 = "HEATMAP_LATENT"
+
      
                                 
                     json_path = svg_path.replace(".svg", ".json")            
@@ -122,14 +138,20 @@ def load_data(dst, i, approach, div):
                     npy_path = svg_path.replace(".svg", ".npy") 
                     image = np.load(npy_path)
                     if json_data["misbehaviour"] == True:
-                        inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"])])
-
-    return inputs
+                        inputs.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"]), json_data["elapsed"]])
+                        if float(json_data["distance to target"]) == 0:
+                            inputs_target.append([image, f"{y2}-{y1}", json_data['predicted_label'], float(json_data["distance to target"]), json_data["elapsed"]])
+    return inputs, inputs_target
 
 
 def plot_tSNE(inputs, _folder, features, div, ii=0):
     """
     This function computes diversity using t-sne
+    :param inputs: list of inputs for t-SNE
+    :param _folder: destination folder to save the plot
+    :param features: feature combination
+    :param div: corresponding sparseness metric (input, latent or heatmap)
+    :param ii: run number
     """
     X, y, imgs = [], [], []
     for i in inputs:
@@ -154,7 +176,6 @@ def plot_tSNE(inputs, _folder, features, div, ii=0):
     sns.scatterplot(
         x="tsne-2d-one", y="tsne-2d-two",
         hue="y",
-        # palette=sns.color_palette("hls", n_colors=10),
         data=df,
         legend="full",
         alpha=0.3
@@ -164,57 +185,55 @@ def plot_tSNE(inputs, _folder, features, div, ii=0):
     return df
 
 
-def compute_tSNE_and_cluster_all(inputs,  _folder, features, div, ii=0, num=10):
+def compute_tSNE_and_cluster_all(inputs, targets,  _folder, features, div, ii=0):
 
     target_input_ga = 0
     target_input_nsga2 = 0
-
     target_latent_ga = 0
     target_latent_nsga2 = 0
-
     target_heatmap_ga = 0
     target_heatmap_nsga2 = 0
 
-    target_heatmap_latent_ga = 0
-    target_heatmap_latent_nsga2 = 0
+    div_input_ga = 0
+    div_input_nsga2 = 0
+    div_latent_ga = 0
+    div_latent_nsga2 = 0
+    div_heatmap_ga = 0
+    div_heatmap_nsga2 = 0
+
+    div_target_input_ga = 0
+    div_target_input_nsga2 = 0
+    div_target_latent_ga = 0
+    div_target_latent_nsga2 = 0
+    div_target_heatmap_ga = 0
+    div_target_heatmap_nsga2 = 0
 
     input_ga = 0
     input_nsga2 = 0
-
     latent_ga = 0
     latent_nsga2 = 0
-
     heatmap_ga = 0
     heatmap_nsga2 = 0
 
-    heatmap_latent_ga = 0
-    heatmap_latent_nsga2 = 0
+    for i in targets:
+        if i[1] == "GA-INPUT":
+            target_input_ga += 1
+        if i[1] == "NSGA2-INPUT":
+            target_input_nsga2 += 1
+        if i[1] == "GA-LATENT":
+            target_latent_ga += 1
+        if i[1] == "NSGA2-LATENT":
+            target_latent_nsga2 += 1
+        if i[1] == "GA-HEATMAP":
+            target_heatmap_ga += 1
+        if i[1] == "NSGA2-HEATMAP":
+            target_heatmap_nsga2 += 1
 
-
-    for i in inputs:
-        if i[3] == 0:
-            if i[1] == "GA-INPUT":
-                target_input_ga += 1
-            if i[1] == "NSGA2-INPUT":
-                target_input_nsga2 += 1
-            if i[1] == "GA-LATENT":
-                target_latent_ga += 1
-            if i[1] == "NSGA2-LATENT":
-                target_latent_nsga2 += 1
-            if i[1] == "GA-HEATMAP":
-                target_heatmap_ga += 1
-            if i[1] == "NSGA2-HEATMAP":
-                target_heatmap_nsga2 += 1
-            if i[1] == "GA-HEATMAP_LATENT":
-                target_heatmap_latent_ga += 1
-            if i[1] == "NSGA2-HEATMAP_LATENT":
-                target_heatmap_latent_nsga2 += 1
 
     if len(inputs) > 3:
 
         df = plot_tSNE(inputs, _folder, features, div, ii)
         df = df.reset_index()  # make sure indexes pair with number of rows
-
 
         np_data_cols = df.iloc[:,787:789]
 
@@ -238,8 +257,6 @@ def compute_tSNE_and_cluster_all(inputs,  _folder, features, div, ii=0, num=10):
         df_nsga2_heatmap = df[df.label == "NSGA2-HEATMAP"]
         df_ga_heatmap = df[df.label =="GA-HEATMAP"]
 
-        df_nsga2_heatmap_latent = df[df.label == "NSGA2-HEATMAP_LATENT"]
-        df_ga_heatmap_latent = df[df.label =="GA-HEATMAP_LATENT"]
 
         num_clusters = len(centers)
 
@@ -252,38 +269,92 @@ def compute_tSNE_and_cluster_all(inputs,  _folder, features, div, ii=0, num=10):
         div_heatmap_ga = df_ga_heatmap.nunique()['Clusters']/num_clusters
         div_heatmap_nsga2 = df_nsga2_heatmap.nunique()['Clusters']/num_clusters
 
-        div_heatmap_latent_ga = df_ga_heatmap_latent.nunique()['Clusters']/num_clusters
-        div_heatmap_latent_nsga2 = df_nsga2_heatmap_latent.nunique()['Clusters']/num_clusters
+        input_ga = len(df_ga_input.index)
+        input_nsga2 = len(df_nsga2_input.index)
 
-        list_data = [("GA", "Input", div_input_ga,  len(df_ga_input.index), target_input_ga), ("NSGA2", "Input", div_input_nsga2,  len(df_nsga2_input.index), target_input_nsga2), \
-                        ("GA", "Latent", div_latent_ga,  len(df_ga_latent.index), target_latent_ga), ("NSGA2", "Latent", div_latent_nsga2,  len(df_nsga2_latent.index), target_latent_nsga2), \
-                        ("GA", "Heatmap",  div_heatmap_ga,  len(df_ga_heatmap.index), target_heatmap_ga), ("NSGA2", "Heatmap", div_heatmap_nsga2,  len(df_nsga2_heatmap.index), target_heatmap_nsga2), \
-                        ("GA", "Heatmap_Latent",  div_heatmap_latent_ga,  len(df_ga_heatmap_latent.index), target_heatmap_latent_ga), ("NSGA2", "Heatmap_Latent", div_heatmap_latent_nsga2,  len(df_nsga2_heatmap_latent.index), target_heatmap_latent_nsga2)]
+        latent_ga = len(df_ga_latent.index)
+        latent_nsga2 = len(df_nsga2_latent.index)
+
+        heatmap_ga = len(df_ga_heatmap.index)
+        heatmap_nsga2 = len(df_nsga2_heatmap.index)
+
     else:
         for i in inputs:
             if i[1] == "GA-INPUT":
                 input_ga += 1
+                div_input_ga = 1.0
             if i[1] == "NSGA2-INPUT":
                 input_nsga2 += 1
+                div_input_nsga2 = 1.0
             if i[1] == "GA-LATENT":
                 latent_ga += 1
+                div_latent_ga = 1.0
             if i[1] == "NSGA2-LATENT":
                 latent_nsga2 += 1
+                div_latent_nsga2 = 1.0
             if i[1] == "GA-HEATMAP":
                 heatmap_ga += 1
+                div_heatmap_ga = 1.0
             if i[1] == "NSGA2-HEATMAP":
                 heatmap_nsga2 += 1 
-            if i[1] == "GA-HEATMAP_LATENT":
-                heatmap_latent_ga += 1
-            if i[1] == "NSGA2-HEATMAP_LATENT":
-                heatmap_latent_nsga2 += 1    
+                div_heatmap_nsga2 = 1.0
 
-        list_data = [("GA", "Input",input_ga,  input_ga, target_input_ga), ("NSGA2", "Input", input_nsga2,  input_nsga2, target_input_nsga2), \
-                        ("GA", "Latent", latent_ga, latent_ga, target_latent_ga), ("NSGA2", "Latent", latent_nsga2,  latent_nsga2, target_latent_nsga2), \
-                        ("GA", "Heatmap",  heatmap_ga,  heatmap_ga, target_heatmap_ga), ("NSGA2", "Heatmap", heatmap_nsga2,  heatmap_nsga2, target_heatmap_nsga2),\
-                        ("GA", "Heatmap_latent",  heatmap_latent_ga,  heatmap_latent_ga, target_heatmap_latent_ga), ("NSGA2", "Heatmap_latent", heatmap_latent_nsga2,  heatmap_latent_nsga2, target_heatmap_latent_nsga2)]
-    
+    if len(targets) > 3:
 
+        df_target = plot_tSNE(targets, _folder, features, div, ii)
+        df_target = df_target.reset_index()  # make sure indexes pair with number of rows
+
+        np_data_cols = df_target.iloc[:,787:789]
+
+        n = len(targets) - 1
+
+        labels, centers = cluster_data(data=np_data_cols, n_clusters_interval=(2, n))
+
+        data_with_clusters = df_target
+        data_with_clusters['Clusters'] = np.array(labels)
+        fig = plt.figure(figsize=(10, 10))
+        plt.scatter(data_with_clusters['tsne-2d-one'],data_with_clusters['tsne-2d-two'], c=data_with_clusters['Clusters'], cmap='rainbow')
+        fig.savefig(f"{_folder}/cluster-diag-tt-{features}-{div}-{ii}-1.pdf", format='pdf')
+
+        
+        df_target_nsga2_input = df_target[df_target.label == "NSGA2-INPUT"]
+        df_target_ga_input = df_target[df_target.label =="GA-INPUT"]
+
+        df_target_nsga2_latent = df_target[df_target.label == "NSGA2-LATENT"]
+        df_target_ga_latent = df_target[df_target.label =="GA-LATENT"]
+
+        df_target_nsga2_heatmap = df_target[df_target.label == "NSGA2-HEATMAP"]
+        df_target_ga_heatmap = df_target[df_target.label =="GA-HEATMAP"]
+
+
+        num_clusters2 = len(centers)
+
+        div_target_input_ga = df_target_ga_input.nunique()['Clusters']/num_clusters2
+        div_target_input_nsga2 = df_target_nsga2_input.nunique()['Clusters']/num_clusters2
+
+        div_target_latent_ga = df_target_ga_latent.nunique()['Clusters']/num_clusters2
+        div_target_latent_nsga2 = df_target_nsga2_latent.nunique()['Clusters']/num_clusters2
+
+        div_target_heatmap_ga = df_target_ga_heatmap.nunique()['Clusters']/num_clusters2
+        div_target_heatmap_nsga2 = df_target_nsga2_heatmap.nunique()['Clusters']/num_clusters2
+    else:
+        for i in targets:
+            if i[1] == "GA-INPUT":
+                div_target_input_ga = 1.0
+            if i[1] == "NSGA2-INPUT":
+                div_target_input_nsga2 = 1.0
+            if i[1] == "GA-LATENT":
+                div_target_latent_ga = 1.0
+            if i[1] == "NSGA2-LATENT":
+                div_target_latent_nsga2 = 1.0
+            if i[1] == "GA-HEATMAP":
+                div_target_heatmap_ga = 1.0
+            if i[1] == "NSGA2-HEATMAP":
+                div_target_heatmap_nsga2 = 1.0
+
+    list_data = [("GA", "Input", div_input_ga,  input_ga, target_input_ga, div_target_input_ga), ("NSGA2", "Input", div_input_nsga2, input_nsga2, target_input_nsga2, div_target_input_nsga2), \
+                        ("GA", "Latent", div_latent_ga,  latent_ga, target_latent_ga, div_target_latent_ga), ("NSGA2", "Latent", div_latent_nsga2,  latent_nsga2, target_latent_nsga2, div_target_latent_nsga2), \
+                        ("GA", "Heatmap",  div_heatmap_ga,  heatmap_ga, target_heatmap_ga, div_target_heatmap_ga), ("NSGA2", "Heatmap", div_heatmap_nsga2, heatmap_nsga2, target_heatmap_nsga2, div_target_heatmap_nsga2)]
     return list_data
 
 
@@ -295,14 +366,15 @@ def find_best_div_approach(dst, feature_combinations):
         for features in feature_combinations:
             for i in range(1, 11):
                 inputs = []
-                for subdir, dirs, files in os.walk(dst, followlinks=False):
+                targets = []
+                for subdir, _, _ in os.walk(dst, followlinks=False):
                     if features in subdir and str(i)+"-" in subdir and evaluate in subdir:
                         data_folder = subdir
-                        all_inputs = load_data_all(data_folder, features)
+                        all_inputs, all_targets = load_data_all(data_folder, features)
                         inputs = inputs + all_inputs
+                        targets = targets + all_targets
 
-
-                list_data = compute_tSNE_and_cluster_all(inputs, f"{dst}/{evaluate}/{features}", features, i)
+                list_data = compute_tSNE_and_cluster_all(inputs, targets, f"{dst}/{evaluate}/{features}", features, i)
                 
                 for data in list_data:
                     dict_data = {
@@ -312,7 +384,8 @@ def find_best_div_approach(dst, feature_combinations):
                         "test input count": data[3],
                         "features": features,
                         "num tsne clusters": str(data[2]),
-                        "test input count in target": data[4]
+                        "test input count in target": data[4],
+                        "target num tsne clusters": str(data[5])
                     }
 
                     filedest = f"{dst}/{evaluate}/{features}/report_{data[0]}-{data[1]}_{i}.json"
@@ -341,7 +414,8 @@ def compute_targets_for_dh(dst, goal, features, metric):
     fts = generate_features(features)
     count = 0
     samples = []
-    for subdir, dirs, files in os.walk(dst, followlinks=False):
+    archive_samples = []
+    for subdir, _, files in os.walk(dst, followlinks=False):
         for json_path in [os.path.join(subdir, f) for f in files if
                         (
                             f.startswith("mbr") and
@@ -362,7 +436,7 @@ def compute_targets_for_dh(dst, goal, features, metric):
             sample.purified = img
             sample.predicted_label = ind["predicted_label"]
             sample.ff = float(ind["performance"])
-
+            sample.elapsed = ind["elapsed"]
 
             sample.features["moves"] = ind["features"]["moves"]
             sample.features["bitmaps"] =  ind["features"]["bitmaps"]
@@ -380,7 +454,7 @@ def compute_targets_for_dh(dst, goal, features, metric):
             sample.distance_to_target = us.manhattan(b, goal)
             if sample.distance_to_target <= 1:
                 # sample.compute_explanation()
-                # sample.compute_latent_vector(encoder1)
+                sample.compute_latent_vector(encoder1)
                 # sample.compute_heatmap_latent_vector(encoder2)
                 print(".", end='', flush=True)
                 samples.append(sample)
@@ -422,101 +496,54 @@ def compute_targets_for_dh(dst, goal, features, metric):
                             archive.append(sample)
                             archive[idx_min].sparseness = dmin
 
-
-
     target_samples = []
     for sample in archive:
         if sample.is_misbehavior() == True:
-            target_samples.append([sample.purified, f"DeepHyperion", sample.predicted_label, sample.distance_to_target])
-
-    print("DeepHyperion", features, len(target_samples))
-    return target_samples
-
-
-# def compute_targets_for_dlf(dst, goal, features, threshold, metric):
-#     count = 0
-#     samples = []
-#     # for subdir, dirs, files in os.walk(dst, followlinks=False):
-#     #     for json_path in [os.path.join(subdir, f) for f in files if
-#     #                     (
-#     #                         f.startswith("mbr") and
-#     #                         f.endswith(".json")
-#     #                     )]:
-#     #         with open(json_path) as jf:
-#     #             ind = json.load(jf)
-
-#     #         npy_path = json_path.replace(".json", ".npy")
-#     #         img = np.load(npy_path)
-
-#     #         xml_desc = (ind["xml_desc"][2:len(ind["xml_desc"])-1]).replace("<?xml version=\\'1.0\\' encoding=\\'utf8\\'?>\\n", "")
-            
-            
-#     #         sample = Sample(xml_desc, EXPECTED_LABEL, int(ind["seed"]))
-#     #         sample.purified = img
-#     #         evaluator.evaluate(sample, model)
+            archive_samples.append([sample.purified, f"DeepHyperion", sample.predicted_label, sample.distance_to_target, sample.elapsed])
+            if sample.distance_to_target == 0:
+                target_samples.append([sample.purified, f"DeepHyperion", sample.predicted_label, sample.distance_to_target, sample.elapsed])
 
 
-#     #         bitmaps = us.bitmap_count(sample, BITMAP_THRESHOLD)
-#     #         moves = us.move_distance(sample)
-#     #         orientation = us.orientation_calc(sample, 0)
-
-#     #         if features == "Moves-Bitmaps":
-#     #             cell = (moves/move_range, bitmaps/bitmaps_range)
-
-#     #         if features == "Orientation-Bitmaps":
-#     #             cell = (orientation/orientation_range, bitmaps/bitmaps_range)
-
-#     #         if features == "Moves-Orientation":
-#     #             cell = (moves/move_range, orientation/orientation_range)
-            
-#     #         sample.distance_to_target = us.manhattan(cell, goal)
-#     #         if sample.distance_to_target <= TARGET_THRESHOLD and sample.is_misbehavior() == True:
-#     #             # sample.compute_explanation()
-#     #             sample.compute_latent_vector(encoder1)
-#     #             # sample.compute_heatmap_latent_vector(encoder2)
-#     #             samples.append(sample)
-#     #             count += 1
-
-#     # samples = sorted(samples, key=lambda x: x.distance_to_target)
-#     # archive = []
-#     # for sample in samples:
-#     #     if len(archive) == 0:
-#     #         archive.append(sample)
-#     #     elif all(us.get_distance_by_metric(a, sample, metric)> threshold for a in archive):
-#     #         archive.append(sample)
-
-#     # target_samples = []
-#     # for sample in archive:
-#     #     print(".", end='', flush=True)
-#     #     target_samples.append([sample.purified, f"DLFuzz", sample.predicted_label, sample.distance_to_target])
-
-#     # print("DLFuzz", features, len(target_samples))
-#     return []#target_samples
+    print("DeepHyperion", features, len(archive_samples))
+    return archive_samples, target_samples
 
 
-def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div, ii=0, num=10):
+def elapsed_to_millisec(elapsed):
+    # compute milli seconds for sample's elapsed time
+    times = re.split(r"[:.]", elapsed)
+    millisecs = float(times[0])*3600+float(times[1])*60+float(times[2])+float(times[3])/1000000.
+    return millisecs
 
-    target_deepatash = 0
-    target_deephyperion = 0
-    target_dlfuzz = 0
 
-    deepatash = 0
-    deephyperion = 0
-    dlfuzz = 0
+def compute_metrics(inputs_da, targets_da, inputs_dh, targets_dh, _folder, features, approach, div, ii=0):
+    div_da = 0
+    div_dh = 0
+    div_targets_da = 0
+    div_targets_dh = 0
+    # compute area under the curve for performance
+    input_data = [0]
+    time_data = [0]
+    current = 0
+    for sample in sorted(inputs_da,key=lambda s: elapsed_to_millisec(s[4]),reverse=False):
+        input_data.append(current+1)
+        millisecs = elapsed_to_millisec(sample[4])
+        time_data.append(millisecs)
+    
+    auc_deepatash = np.trapz(x = time_data, y= input_data)
 
-    dist_deepatash = 0.0
-    dist_deephyperion = 0.0
-    dist_dlfuzz = 0.0
+    input_data = [0]
+    time_data = [0]
+    current = 0
+    for sample in sorted(inputs_dh,key=lambda s: elapsed_to_millisec(s[4]),reverse=False):
+        input_data.append(current+1)
+        millisecs = elapsed_to_millisec(sample[4])
+        time_data.append(millisecs)
+    
+    auc_deephyperion = np.trapz(x = time_data, y= input_data)
+    
+    # compute cluster coverage for sparseness
 
-    for i in inputs:
-        if i[3] == 0:
-            if i[1] == f"{approach}-{div}":
-                target_deepatash += 1
-            if i[1] == "DLFuzz":
-                target_dlfuzz += 1
-            if i[1] == "DeepHyperion":
-                target_deephyperion += 1
-
+    inputs = inputs_da + inputs_dh
     if len(inputs) > 3:
 
         df = plot_tSNE(inputs, _folder, features, div, ii)
@@ -537,74 +564,84 @@ def compute_tSNE_cluster_vs_dh_and_dlf(inputs, _folder, features, approach, div,
         
         df_da = df[df.label == f"{approach}-{div}"]
         df_dh = df[df.label =="DeepHyperion"]
-        df_dlf = df[df.label =="DLFuzz"]
-
-
 
         num_clusters = len(centers)
 
         div_da = df_da.nunique()['Clusters']/num_clusters
         div_dh = df_dh.nunique()['Clusters']/num_clusters
-        div_dlf = df_dlf.nunique()['Clusters']/num_clusters
-
-        list_data = [("DeepAtash", div_da, len(df_da.index), target_deepatash),
-                    ("DLFuzz", div_dlf, len(df_dlf.index), target_dlfuzz),
-                    ("DeepHyperion", div_dh, len(df_dh.index), target_deephyperion)]
-    
     else:
         for i in inputs:
             if i[1] == f"{approach}-{div}":
-                deepatash += 1
-                dist_deepatash = 1.0
-            if i[1] == "DLFuzz":
-                dlfuzz += 1
-                dist_dlfuzz = 1.0
+                div_da = 1.0
             if i[1] == "DeepHyperion":
-                deephyperion += 1
-                dist_deephyperion = 1.0
+                div_dh = 1.0
+    
+    targets = targets_da + targets_dh
+    if len(targets) > 3:
 
-        list_data = [("DeepAtash", dist_deepatash , deepatash, target_deepatash),
-            ("DLFuzz", dist_dlfuzz, dlfuzz, target_dlfuzz),
-            ("DeepHyperion", dist_deephyperion, deephyperion, target_deephyperion)]
+        df_target = plot_tSNE(targets, _folder, features, div, ii)
+        df_target = df_target.reset_index()  # make sure indexes pair with number of rows
+
+        np_data_cols = df_target.iloc[:,787:789]
+
+        n = len(targets) - 1
+
+        labels, centers = cluster_data(data=np_data_cols, n_clusters_interval=(2, n))
+
+        data_with_clusters = df_target
+        data_with_clusters['Clusters'] = np.array(labels)
+        fig = plt.figure(figsize=(10, 10))
+        plt.scatter(data_with_clusters['tsne-2d-one'],data_with_clusters['tsne-2d-two'], c=data_with_clusters['Clusters'], cmap='rainbow')
+        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-1.pdf", format='pdf')
+
+        
+        df_da = df_target[df_target.label == f"{approach}-{div}"]
+        df_dh = df_target[df_target.label =="DeepHyperion"]
+
+        num_clusters = len(centers)
+
+        div_targets_da = df_da.nunique()['Clusters']/num_clusters
+        div_targets_dh = df_dh.nunique()['Clusters']/num_clusters    
+    else:
+        for i in targets:
+            if i[1] == f"{approach}-{div}":
+                div_targets_da = 1.0
+            if i[1] == "DeepHyperion":
+                div_targets_dh = 1.0
+
+    list_data = [("DeepAtash", div_da , len(inputs_da), div_targets_da, len(targets_da), auc_deepatash),
+            ("DeepHyperion", div_dh, len(inputs_dh), div_targets_dh, len(targets_dh), auc_deephyperion)]
 
     return  list_data
   
 
-def compare_with_dh_dlf(approach, div, features, target_area):
+def compare_with_dh(approach, div, features, target_area):
 
+    result_folder = f"../experiments/data/mnist/comparison/{target_area}"
+    Path(result_folder).mkdir(parents=True, exist_ok=True)
 
-    result_folder = f"../experiments/data/mnist/{target_area}"
-
-    
     for feature in features:
 
         dst = f"../experiments/data/mnist/DeepAtash/{target_area}/{feature[0]}"
         dst_dh = f"../experiments/data/mnist/DeepHyperion/{feature[0]}"
-        dst_dlf = f"../experiments/data/mnist/DLFuzz"
         
         for i in range(1, 11):
             # load approach data
-            inputs_focused = load_data(dst, str(i)+"-", approach, div)
-            print(len(inputs_focused))
+            inputs_focused, targets_focused = load_data(dst, str(i)+"-", approach, div)
+            print(f"DeepAtash: {len(inputs_focused)}")
             
 
             # load DH data
-            for subdir, dirs, files in os.walk(dst_dh, followlinks=False):
+            for subdir, _, _ in os.walk(dst_dh, followlinks=False):
                 if str(i)+"-" in subdir and "all" in subdir:
-                    inputs_dh = compute_targets_for_dh(subdir, feature[1], feature[0], div)
+                    inputs_dh, targets_dh = compute_targets_for_dh(subdir, feature[1], feature[0], div)
             
-            # load DLFuzz data
-            # for subdir, dirs, files in os.walk(dst_dlf, followlinks=False):
-            #     if str(i)+"-" in subdir:
-            #         inputs_dlf = compute_targets_for_dlf(dst_dlf, feature[1], feature[0], div)
-
-
             if "ga" == approach:
                 approach2 = "GA"
             elif "nsga2" == approach:
                 approach2 = "NSGA2"
 
-            list_data = compute_tSNE_cluster_vs_dh_and_dlf(inputs_dh+inputs_focused, result_folder, feature[0], approach2, div, str(i))
+            list_data = compute_metrics(inputs_focused, targets_focused, inputs_dh, targets_dh, result_folder, feature[0], approach2, div, str(i))
 
 
             for data in list_data:
@@ -614,9 +651,10 @@ def compare_with_dh_dlf(approach, div, features, target_area):
                     "test input count": data[2],
                     "features": feature[0],
                     "num tsne clusters": str(data[1]),
-                    "test input count in target": data[3]
+                    "target num tsne clusters": str(data[3]),
+                    "test input count in target": data[4],
+                    "auc": str(data[5])
                 }
-
 
                 filedest = f"{result_folder}/report_{data[0]}_{feature[0]}_{target_area}_{i}.json"
                 with open(filedest, 'w') as f:
@@ -625,18 +663,16 @@ def compare_with_dh_dlf(approach, div, features, target_area):
 
 
 if __name__ == "__main__": 
-
-    feature_combinations = [ "Moves-Bitmaps", "Orientation-Bitmaps", "Moves-Orientation"]
-    dst = f"../experiments/data/mnist/DeepAtash"
-    find_best_div_approach(dst, feature_combinations)
-
-
-    # features = [("Orientation-Bitmaps", (4, 1)),("Moves-Bitmaps", (6, 0)), ("Moves-Orientation", (7, 5))]
-    # compare_with_dh_dlf("ga", "INPUT", features, "target_cell_in_dark")
-
-    # features = [("Orientation-Bitmaps",(19, 4)), ("Moves-Bitmaps", (21,9)),  ("Moves-Orientation", (14, 12))]
-    # compare_with_dh_dlf("ga", "INPUT", features, "target_cell_in_grey")
-
-    # features = [("Orientation-Bitmaps",(10, 2)), ("Moves-Bitmaps", (11,3)), ("Moves-Orientation", (7, 5))]
-    # compare_with_dh_dlf("ga", "INPUT", features, "target_cell_in_white")
-
+    if sys.argv[1] == "dark": 
+        features = [ ("Moves-Bitmaps", (6, 0)), ("Moves-Orientation", (7, 5)), ("Orientation-Bitmaps", (4, 1))]
+        compare_with_dh("nsga2", "LATENT", features, "target_cell_in_dark")
+    elif sys.argv[1] == "grey": 
+        features = [("Orientation-Bitmaps",(19, 4)), ("Moves-Bitmaps", (21,9)),  ("Moves-Orientation", (16, 11))]
+        compare_with_dh("nsga2", "LATENT", features, "target_cell_in_grey")
+    elif sys.argv[1] == "white":
+        features = [("Orientation-Bitmaps",(10, 2)), ("Moves-Bitmaps", (11,3)), ("Moves-Orientation", (17, 10))]
+        compare_with_dh("nsga2", "LATENT", features, "target_cell_in_white")
+    else:
+        feature_combinations = ["Moves-Orientation", "Moves-Bitmaps", "Orientation-Bitmaps"]
+        dst = f"../experiments/data/mnist/DeepAtash"
+        find_best_div_approach(dst, feature_combinations)

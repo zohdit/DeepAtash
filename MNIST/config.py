@@ -19,10 +19,10 @@ NUM_CELLS        = 25
 
 GOAL             = (17, 10)
 
-
+INITIAL_SEED    = 200
 
 # goal cell for white area mov-lum (11, 3)  or-lum (10, 2) move-or  (17, 10)
-# goal cell for gray area mov-lum (21, 9) or-lum (19, 4) move-or (14, 12)
+# goal cell for grey area mov-lum (21, 9) or-lum (19, 4) move-or (16, 11)
 # goal cell for dark area mov-lum (6, 0) or-lum (4, 1) move-or (7, 5)
 
 DIVERSITY_METRIC = "LATENT" # "INPUT" "HEATMAP" "LATENT" "HEATLAT"
@@ -39,7 +39,7 @@ MUTOFPROB        = 0.5
 MUTUPPERBOUND    = 0.6
 MUTLOWERBOUND    = 0.01
 
-META_FILE       = "/mnt/d/tara/DeepAtash/experiments/data/mnist/DeepHyperion/meta.json"
+META_FILE       = "../experiments/data/mnist/DeepHyperion/meta.json"
 
 
 def to_json(folder):
