@@ -2,9 +2,54 @@ import numpy as np
 from utils import get_distance
 from config import K
 from predictor import Predictor
+from explainer import explain_integrated_gradiant_batch
 
 class Evaluator:
     cache = dict()
+
+    def evaluate_latent_batch(self, inds, encoder):
+        imgs = []
+        for ind in inds:
+            imgs.append(ind.purified)
+
+        imgs = np.array(imgs)
+        imgs = imgs.reshape(-1, 28, 28, 1)
+        latents, _, _ = encoder.predict(imgs) 
+        
+        for ind, mean in zip(inds, latents): 
+            ind.latent_vector = mean
+
+
+    def evaluate_heatmap_batch(self, inds):
+        imgs = []
+        for ind in inds:
+            imgs.append(ind.purified)
+
+        imgs = np.array(imgs)
+        imgs = imgs.reshape(-1, 28, 28, 1)
+        explanations = explain_integrated_gradiant_batch(imgs) 
+
+        
+        for ind, exp in zip(inds, explanations): 
+            ind.explanation = exp
+
+
+    def evaluate_batch(self, inds, model):
+        imgs = []
+        for ind in inds:
+            imgs.append(ind.purified)
+        
+        imgs = np.array(imgs)
+        imgs = imgs.reshape(-1, 28, 28, 1)
+
+        pred_confs =  Predictor.predict_batch(imgs, model)      
+        
+        for ind, (pred, conf) in zip(inds, pred_confs): 
+            ind.predicted_label, ind.confidence = pred , conf
+
+            # Calculate fitness function
+            ind.ff = ind.confidence if ind.confidence > 0 else -0.1
+            
 
     def evaluate(self, ind, model):
         ind.ff = None          

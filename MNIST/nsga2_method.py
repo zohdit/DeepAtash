@@ -25,7 +25,7 @@ import utils as us
 from utils import move_distance, bitmap_count, orientation_calc
 import vectorization_tools
 from feature import Feature
-from config import INITIAL_SEED
+
 
 # DEAP framework setup.
 toolbox = base.Toolbox()
@@ -47,51 +47,18 @@ if DIVERSITY_METRIC == "LATENT":
     encoder = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
     decoder = tf.keras.models.load_model("models/vae_decoder_test", compile=False)
 
-if DIVERSITY_METRIC == "HEATLAT":
-    encoder = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
-    decoder = tf.keras.models.load_model("models/vaeh_decoder", compile=False)
 
 
-def generate_initial_pop(features, goal):
+def generate_initial_pop():
     samples = []
     for seed in range(len(x_test)):
         if y_test[seed] == EXPECTED_LABEL:
             starting_seeds.append(seed)
-
-    random.shuffle(starting_seeds)
-    
-    for seed in starting_seeds:
-        b = tuple()
-        xml_desc = vectorization_tools.vectorize(x_test[seed])
-        individual = creator.Individual(xml_desc, EXPECTED_LABEL, seed)
-        individual.features = {
-                    "moves":  move_distance(individual),
-                    "orientation": orientation_calc(individual,0),
-                    "bitmaps": bitmap_count(individual, BITMAP_THRESHOLD)
-        }
-
-        for ft in features:
-            i = ft.get_coordinate_for(individual)
-            if i != None:
-                b = b + (i,)
-            else:
-                # this individual is out of range and must be discarded
-                individual.distance_to_target = np.inf
-                b = None
-                break
-
-        if b != None:
-            individual.coordinate = b
-            individual.distance_to_target = us.manhattan(b, goal)
+            xml_desc = vectorization_tools.vectorize(x_test[seed])
+            sample = creator.Individual(xml_desc, EXPECTED_LABEL, seed) 
+            samples.append(sample)
         
-        if individual.distance_to_target < 5:
-            samples.append(individual) 
-
-    log.info(f"initial seeds: {len(samples)}")
-    if len(samples) < INITIAL_SEED:
-        return samples
-    else: 
-        return samples[:INITIAL_SEED]   
+    return samples 
      
 
 
@@ -106,19 +73,6 @@ def reseed_individual(seeds):
     return sample
 
 def evaluate_individual(individual, features, goal, archive):
-
-    if individual.predicted_label == None:
-        evaluator.evaluate(individual, model)
-    
-    if DIVERSITY_METRIC == "LATENT" and individual.latent_vector is None:
-        individual.compute_latent_vector(encoder)
-
-    elif DIVERSITY_METRIC == "HEATMAP" and individual.explanation is None:
-        individual.compute_explanation()
-
-    elif DIVERSITY_METRIC == "HEATLAT" and individual.heatmap_latent_vector is None:
-        individual.compute_explanation()
-        individual.compute_heatmap_latent_vector(encoder)
 
     # diversity computation
     individual.sparseness, _ = evaluator.evaluate_sparseness(individual, archive.archive)
@@ -182,6 +136,27 @@ toolbox.register("select", selNSGA2)
 toolbox.register("mutate", mutate_individual)
 
 
+def evaluate_batch(individuals):
+    ind_batch = []
+    latent_batch = []
+    heatmap_batch = []
+
+    for individual in individuals:
+        if individual.predicted_label == None:
+            ind_batch.append(individual)
+        if individual.latent_vector is None:
+            latent_batch.append(individual)
+        if individual.explanation is None:
+            heatmap_batch.append(individual)
+
+    if len(ind_batch) > 0:
+        evaluator.evaluate_batch(ind_batch, model)
+    if DIVERSITY_METRIC == "LATENT" and len(latent_batch) > 0:
+        evaluator.evaluate_latent_batch(latent_batch, encoder)
+    if DIVERSITY_METRIC == "HEATMAP" and len(heatmap_batch) > 0:
+        evaluator.evaluate_heatmap_batch(heatmap_batch)
+
+
 def main():
     start_time = datetime.now()
     # initialize archive
@@ -193,10 +168,14 @@ def main():
     log.info(f"Generate initial population")  
            
 
-    population = toolbox.population(features, GOAL)
+    population = toolbox.population()
 
     # Evaluate the individuals
     invalid_ind = [ind for ind in population]
+
+
+    evaluate_batch(invalid_ind)
+
 
     fitnesses = [toolbox.evaluate(i, features, GOAL, archive) for i in invalid_ind]
 
@@ -249,6 +228,8 @@ def main():
 
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
+
+        evaluate_batch(invalid_ind)
 
         fitnesses = [toolbox.evaluate(i, features, GOAL, archive) for i in invalid_ind]
 

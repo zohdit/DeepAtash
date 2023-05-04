@@ -360,7 +360,7 @@ def compute_tSNE_and_cluster_all(inputs, targets,  _folder, features, div, ii=0)
 
 def find_best_div_approach(dst, feature_combinations):
 
-    evaluation_area =  ["target_cell_in_dark", "target_cell_in_grey", "target_cell_in_white"] #, ["target_cell_in_dark"], [] 
+    evaluation_area =  ["target_cell_in_white"] # ["target_cell_in_dark", "target_cell_in_grey",
 
     for evaluate in evaluation_area:        
         for features in feature_combinations:
@@ -673,6 +673,6 @@ if __name__ == "__main__":
         features = [("Orientation-Bitmaps",(10, 2)), ("Moves-Bitmaps", (11,3)), ("Moves-Orientation", (17, 10))]
         compare_with_dh("nsga2", "LATENT", features, "target_cell_in_white")
     else:
-        feature_combinations = ["Moves-Orientation", "Moves-Bitmaps", "Orientation-Bitmaps"]
+        feature_combinations = ["Moves-Bitmaps"] #, "Moves-Orientation" , "Orientation-Bitmaps"]
         dst = f"../experiments/data/mnist/DeepAtash"
         find_best_div_approach(dst, feature_combinations)

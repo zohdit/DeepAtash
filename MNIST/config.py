@@ -12,20 +12,20 @@ IMG_SIZE         = 28
 NUM_CLASSES      = 10
 MODEL            = 'models/mnist_classifier.h5'
 BITMAP_THRESHOLD = 0.5
-FEATURES         = ["Moves", "Orientation"]#, "Orientation", "Moves", "Bitmaps"
+FEATURES         = ["Moves", "Bitmaps"]#, "Orientation", "Moves", "Bitmaps"
 
 
 NUM_CELLS        = 25
 
-GOAL             = (17, 10)
+GOAL             = (11, 3)
 
-INITIAL_SEED    = 200
 
 # goal cell for white area mov-lum (11, 3)  or-lum (10, 2) move-or  (17, 10)
 # goal cell for grey area mov-lum (21, 9) or-lum (19, 4) move-or (16, 11)
 # goal cell for dark area mov-lum (6, 0) or-lum (4, 1) move-or (7, 5)
 
-DIVERSITY_METRIC = "LATENT" # "INPUT" "HEATMAP" "LATENT" "HEATLAT"
+DIVERSITY_METRIC =  "LATENT" # "INPUT" "HEATMAP" "LATENT" 
+
 TARGET_THRESHOLD = 1
 
 TARGET_SIZE     = 81

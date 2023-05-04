@@ -3,9 +3,9 @@ import json
 from os.path import join
 import matplotlib.pyplot as plt
 import numpy as np
-from timer import Timer
-from utils import heatmap_reshape
 
+
+from timer import Timer
 import rasterization_tools
 from explainer import explain_integrated_gradiant
 
@@ -54,10 +54,6 @@ class Sample:
     def compute_latent_vector(self, encoder):
         mean, _, _ = encoder.predict(self.purified)
         self.latent_vector = mean
-
-    def compute_heatmap_latent_vector(self, encoder):
-        mean, _, _ = encoder.predict(heatmap_reshape(self.explanation))
-        self.heatmap_latent_vector = mean
 
 
     def from_dict(self, the_dict):

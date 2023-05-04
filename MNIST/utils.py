@@ -54,10 +54,6 @@ def get_distance(ind1, ind2):
         distance = euclidean(ind1.explanation, ind2.explanation)
 
 
-    elif DIVERSITY_METRIC == "HEATLAT":
-        # latent space
-        distance = euclidean(ind1.heatmap_latent_vector, ind2.heatmap_latent_vector)
-    
 
     return distance
 
@@ -79,10 +75,7 @@ def get_distance_by_metric(ind1, ind2, metric):
         # heatmap space
         distance = euclidean(ind1.explanation, ind2.explanation)
 
-    elif metric == "HEATLAT":
-        # latent space
-        distance = euclidean(ind1.heatmap_latent_vector, ind2.heatmap_latent_vector)
-    
+
 
     return distance
 
@@ -169,35 +162,6 @@ def orientation_calc(digit, threshold):
     else:
         return 0
 
-def input_reshape(x):
-    # shape numpy vectors
-    if tf.keras.backend.image_data_format() == 'channels_first':
-        x_reshape = x.reshape(x.shape[0], 1, 28, 28)
-    else:
-        x_reshape = x.reshape(x.shape[0], 28, 28, 1)
-    x_reshape = x_reshape.astype('float32')
-    x_reshape /= 255.0
-
-    return x_reshape
-
-def heatmap_reshape(v):
-    v = np.where(v > 0.01, 1, v)
-    v = (np.expand_dims(v, 0))
-    # Shape numpy vectors
-    if tf.keras.backend.image_data_format() == 'channels_first':
-        v = v.reshape(v.shape[0], 1, IMG_SIZE, IMG_SIZE)
-    else:
-        v = v.reshape(v.shape[0], IMG_SIZE, IMG_SIZE, 1)
-    v = v.astype('float32')
-    np.expand_dims(v, -1) 
-    return v
-
-def print_image(filename, image, cmap=''):
-    if cmap != '':
-        plt.imsave(filename, image.reshape(28, 28), cmap=cmap, format='png')
-    else:
-        plt.imsave(filename, image.reshape(28, 28), format='png')
-    np.save(filename, image)
 
 
 # Useful function that shapes the input in the format accepted by the ML model.
@@ -205,6 +169,7 @@ def reshape(v):
     v = (np.expand_dims(v, 0))
     # Shape numpy vectors
     if tf.keras.backend.image_data_format() == 'channels_first':
+        print(here)
         v = v.reshape(v.shape[0], 1, IMG_SIZE, IMG_SIZE)
     else:
         v = v.reshape(v.shape[0], IMG_SIZE, IMG_SIZE, 1)

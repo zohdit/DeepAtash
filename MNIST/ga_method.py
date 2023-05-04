@@ -47,9 +47,7 @@ encoder = None
 if DIVERSITY_METRIC == "LATENT":
     encoder = tf.keras.models.load_model("models/vae_encoder_test", compile=False)
     decoder = tf.keras.models.load_model("models/vae_decoder_test", compile=False)
-if DIVERSITY_METRIC == "HEATLAT":
-    encoder = tf.keras.models.load_model("models/vaeh_encoder", compile=False)
-    decoder = tf.keras.models.load_model("models/vaeh_decoder", compile=False)
+
 
 def generate_initial_pop():
     samples = []
@@ -75,15 +73,6 @@ def reseed_individual(seeds):
 
 
 def evaluate_individual(individual, features, goal, archive):
-    if individual.predicted_label == None:
-        evaluator.evaluate(individual, model)
-    if DIVERSITY_METRIC == "LATENT" and individual.latent_vector is None:
-        individual.compute_latent_vector(encoder)
-    elif DIVERSITY_METRIC == "HEATLAT" and individual.heatmap_latent_vector is None:
-        individual.compute_explanation()
-        individual.compute_heatmap_latent_vector(encoder)
-    elif DIVERSITY_METRIC == "HEATMAP" and individual.explanation is None:
-        individual.compute_explanation()
 
     # diversity computation
     individual.sparesness, _ = evaluator.evaluate_sparseness(individual, archive.archive)
@@ -147,7 +136,25 @@ toolbox.register("evaluate", evaluate_individual)
 toolbox.register("select", tools.selBest)  
 toolbox.register("mutate", mutate_individual)
 
+def evaluate_batch(individuals):
+    ind_batch = []
+    latent_batch = []
+    heatmap_batch = []
 
+    for individual in individuals:
+        if individual.predicted_label == None:
+            ind_batch.append(individual)
+        if individual.latent_vector is None:
+            latent_batch.append(individual)
+        if individual.explanation is None:
+            heatmap_batch.append(individual)
+
+    if len(ind_batch) > 0:
+        evaluator.evaluate_batch(ind_batch, model)
+    if DIVERSITY_METRIC == "LATENT" and len(latent_batch) > 0:
+        evaluator.evaluate_latent_batch(latent_batch, encoder)
+    if DIVERSITY_METRIC == "HEATMAP" and len(heatmap_batch) > 0:
+        evaluator.evaluate_heatmap_batch(heatmap_batch)
 
 def main():
     # initialize archive
@@ -164,6 +171,8 @@ def main():
 
     # Evaluate the individuals
     invalid_ind = [ind for ind in population]
+
+    evaluate_batch(invalid_ind)
 
     fitnesses = [toolbox.evaluate(i, features, GOAL, archive) for i in invalid_ind]
 
@@ -213,6 +222,8 @@ def main():
 
         # Evaluate the individuals
         invalid_ind = [ind for ind in offspring + population]
+
+        evaluate_batch(invalid_ind)
 
         fitnesses = [toolbox.evaluate(i, features, GOAL, archive) for i in invalid_ind]
 

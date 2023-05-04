@@ -20,12 +20,12 @@ def edit_distance(txt1, txt2):
     preprocess_text1 = text_prep(txt1)
     pos_words1 = len([i for i in preprocess_text1 if i in pos_words])
     neg_words1 = len([i for i in preprocess_text1 if i in neg_words])
-    sentiment_words1 = pos_words1 + neg_words1
+    sentiment_words1 = abs(pos_words1 - neg_words1)
 
     preprocess_text2 = text_prep(txt2)
     pos_words2 = len([i for i in preprocess_text2 if i in pos_words])
     neg_words2 = len([i for i in preprocess_text2 if i in neg_words])
-    sentiment_words2 = pos_words2 + neg_words2
+    sentiment_words2 = abs(pos_words2 - neg_words2)
 
     distance = abs(sentiment_words2 - sentiment_words1)
 
