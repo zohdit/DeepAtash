@@ -14,3 +14,12 @@ playground/
 *.ipynb
 
 .vscode
+
+data/*
+data/
+
+plots/
+plots/*
+
+models/
+models/*
