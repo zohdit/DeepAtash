@@ -47,7 +47,6 @@ pathy==0.6.1
 patsy==0.5.2
 Pillow==9.0.1
 pkg_resources==0.0.0
-potrace @ file:///home/nabaut/pypotrace
 preshed==3.0.6
 protobuf==3.19.4
 pyasn1==0.4.8
