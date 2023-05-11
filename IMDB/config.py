@@ -27,13 +27,13 @@ DISTANCE        = 5
 # goal cell for grey area  neg-pos (14, 6) pos-verb (8, 12) neg-verb (9, 6)
 # goal cell for dark area neg-pos (11, 8) pos-verb (1, 7) neg-verb (4, 12)
 
-DIVERSITY_METRIC = "HEATMAP" # "INPUT" "HEATMAP" "LATENT"
+DIVERSITY_METRIC = "LATENT" # "INPUT" "HEATMAP" "LATENT"
 TARGET_THRESHOLD = 1
 
 TARGET_SIZE     = 42
 
 RESEEDUPPERBOUND = 10
-RUN_TIME = 3600
+RUN_TIME = 600
 
 
 

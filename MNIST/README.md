@@ -80,7 +80,7 @@ Once the installation is complete, verify the installation by checking the pip v
 ``` 
 python3 -m pip --version
 
-pip 21.1.1 from /usr/local/lib/python3.6/dist-packages/pip (python 3.6)
+pip 21.3.1 from /usr/local/lib/python3.6/dist-packages/pip (python 3.6)
 ```
 ### Creating a Python virtual environment ###
 
