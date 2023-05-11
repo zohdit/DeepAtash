@@ -6,7 +6,7 @@ cffi==1.11.5
 click==7.1.2
 cssselect2==0.3.0
 cycler==0.10.0
-deap==1.2.2
+deap==1.2.0
 decorator==4.4.2
 defusedxml==0.6.0
 gobject==0.1.0
