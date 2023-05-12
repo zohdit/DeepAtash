@@ -22,22 +22,21 @@ class BeamNGIndividual(Individual):
         self.name_ljust = self.name.ljust(6)
         self.config = config
         self.seed = None #: BeamNGMember
-        self.oob_ff = None
 
     def evaluate(self):
         self.m.evaluate()
 
         border = self.m.distance_to_boundary
-        self.oob_ff = border if border > 0 else -0.1
+        self.m.oob_ff = border if border > 0 else -0.1
 
         log.debug(f'evaluated {self}')
 
-        return self.oob_ff
+        return self.m.oob_ff
 
     def clone(self) -> 'BeamNGIndividual':
-        res: BeamNGIndividual = creator.Individual(self.m.clone(), self.config)
+        res = BeamNGIndividual(self.m.clone(), self.config)
         res.seed = self.seed
-        res.oob_ff = None
+        res.m.oob_ff = None
         log.debug(f'cloned to {res} from {self}')
         return res
 

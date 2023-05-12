@@ -8,7 +8,6 @@ from core.member import Member
 class Individual:
     def __init__(self, m: Member):
         self.m: Member = m
-        self.oob_ff: float = None
         self.seed: Member = None
         # rank based on sparseness
         self.rank = np.inf

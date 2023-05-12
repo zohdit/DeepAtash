@@ -69,7 +69,7 @@ def extract_candidate_targets(dst, feature):
 if __name__ == "__main__": 
     # you need to compute coverage maps of DeepHyperion and stats before hand
     dst = "../experiments/data/bng/DeepHyperion"
-    features = ["curvature-segment_count"]
+    features = ["curvature-segment_count", "curvature-mean_lateral_position", "segment_count-sd_steering"]
     
     for feature in features:
         candidate_targets_dark, candidate_targets_grey, candidate_targets_white, median_coverage, percentile_25 = extract_candidate_targets(dst, feature)

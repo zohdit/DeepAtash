@@ -17,7 +17,7 @@ from self_driving.beamng_individual import BeamNGIndividual
 from self_driving.beamng_individual_set_store import BeamNGIndividualSetStore
 from self_driving.beamng_member import BeamNGMember
 from self_driving.road_generator import RoadGenerator
-from self_driving.initial_population_generator import initial_pool_generator, initial_population_generator
+
 
 import logging as log
 
@@ -27,16 +27,7 @@ class BeamNGProblem(Problem):
         self.config: BeamNGConfig = config
         self._evaluator: BeamNGEvaluator = None
         super().__init__(config)
-        # if self.config.generator_name == self.config.GEN_RANDOM:
-        #     seed_pool = SeedPoolRandom(self, config.POPSIZE)
-        # elif self.config.generator_name == self.config.GEN_DIVERSITY:
-        #     log.info("Generating initial pool")
-        #     path = initial_pool_generator(self.config, self)
-        #     initial_population_generator(path, self.config, self)
-        #     seed_pool = SeedPoolFolder(self, config.initial_population_folder)
-        # else:
-        #     seed_pool = SeedPoolFolder(self, config.seed_folder)
-        # self._seed_pool_strategy = SeedPoolAccessStrategy(seed_pool)
+
         self.experiment_path = folders.experiments.joinpath(self.config.experiment_name)
         delete_folder_recursively(self.experiment_path)
 

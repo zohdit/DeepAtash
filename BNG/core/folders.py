@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 import self_driving.beamng_config as cfg
+from config import FEATURES, RUN_ID, APPROACH, DIVERSITY_METRIC
 
 class Folders:
     def __init__(self, lib_folder: str, config):
@@ -13,7 +14,7 @@ class Folders:
         self.log_ini: Path = self.data.joinpath('log.ini').absolute()
         self.member_seeds: Path = self.data.joinpath('member_seeds').absolute()
         self.experiments: Path = self.log.joinpath(f'outputs').absolute()
-        self.simulations: Path = self.log.joinpath(f'simulations').absolute()
+        self.simulations: Path = self.log.joinpath(f'{RUN_ID}-{APPROACH}_-features_{FEATURES[0]}-{FEATURES[1]}-diversity_{DIVERSITY_METRIC}/simulations').absolute()
         self.trained_models_colab: Path = self.data.joinpath('trained_models_colab').absolute()
 
 config = cfg.BeamNGConfig()

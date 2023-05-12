@@ -24,6 +24,10 @@ import numpy as np
 
 NAMESPACE = '{http://www.w3.org/2000/svg}'
 
+def time_to_sec(t):
+   h, m, s = map(float, str(t).split(':'))
+   return h * 3600 + m * 60 + s
+
 
 def to_gray_uint(image):
     return np.uint8(rgb2gray(image) * 255)

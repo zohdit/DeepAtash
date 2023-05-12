@@ -50,7 +50,6 @@ class BeamNGMember(Member):
         res = BeamNGMember(list(self.control_nodes), list(self.sample_nodes), self.num_spline_nodes, self.road_bbox)
         res.config = self.config
         res.problem = self.problem
-        res.distance_to_boundary = self.distance_to_boundary
         return res
 
     def to_dict(self) -> dict:

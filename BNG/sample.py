@@ -21,6 +21,7 @@ class Sample:
         self.sparseness = np.inf
         self.misbehaviour = None
         self.coordinate = None
+        self.elapsed = None
         Sample.COUNT += 1
 
 
@@ -30,7 +31,7 @@ class Sample:
                 'elapsed': str(self.ind.m.elapsed),
                 'timestamp': str(self.ind.m.timestamp),
                 'misbehaviour': self.is_misbehaviour(),
-                'performance': str(self.ind.m.distance_to_boundary),
+                'performance': str(self.ind.m.oob_ff),
                 'features': self.features,
                 'distance to target': str(self.distance_to_target),
                 'sparseness': str(self.sparseness),
@@ -49,7 +50,8 @@ class Sample:
 
 
     def clone(self):
-        res = Sample(self.ind)
+        new_ind = self.ind.clone()
+        res = Sample(new_ind)
         return res
 
 
@@ -58,7 +60,7 @@ class Sample:
 
 
     def is_misbehaviour(self):
-        if self.ind.m.distance_to_boundary < 0:
+        if self.ind.m.oob_ff < 0:
             return True
         else:
             return False

@@ -1,10 +1,36 @@
 import numpy as np
 from utils import get_distance
 from config import K
+import utils as us
 
 
 class Evaluator:
     cache = dict()
+
+    def evaluate_mock(self, individual, model_MLP, model_StdSA, model_behaviour):
+        nodes = [[item[0], item[1]] for item in individual.ind.m.control_nodes]
+        individual.features["mean_lateral_position"] = model_MLP.predict(np.array([np.array(nodes).flatten()]))[0]
+        individual.features["sd_steering_angle"] = model_StdSA.predict(np.array([np.array(nodes).flatten()]))[0]
+        individual.ind.m.oob_ff = model_behaviour.predict(np.array([np.array(nodes).flatten()]))[0]
+
+    def evaluate_simulation(self, individual, features, goal):
+        self.evaluate(individual.ind)            
+        individual.features["sd_steering_angle"] = us.sd_steering(individual)
+        individual.features["mean_lateral_position"] = us.mean_lateral_position(individual)
+
+        b = tuple()
+
+        for ft in features:
+            i = ft.get_coordinate_for(individual)
+            if i != None:
+                b = b + (i,)
+            else:
+                # this individual is out of range and must be discarded
+                individual.distance_to_target = np.inf
+        
+        individual.coordinate = b
+        individual.distance_to_target = us.manhattan(b, goal)
+
 
     def evaluate(self, ind):
         ind.evaluate()
@@ -26,6 +52,7 @@ class Evaluator:
             return d
 
         return memoized_dist(ind, ind_pop)
+
 
     def dist_from_nearest_archived(self, ind, population, k):
         neighbors = list()

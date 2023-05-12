@@ -119,14 +119,10 @@ pip install -r requirements.txt
 
 ### Run the Tool ###
 
-To run each of the search approaches use the following command:
+To run the approach use the following command:
 
 ```
-python ga_method.py
-```
-or
-```
-python nsga2_method.py
+python deepatash_mnist.py
 ```
 
 ### Output ###

@@ -1,10 +1,12 @@
 
 import os
+import sys
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import json
 from pathlib import Path
-import sys
 import time
 import matplotlib
+from self_driving.catmull_rom import catmull_rom
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -35,7 +37,6 @@ def cluster_data(data: np.ndarray, n_clusters_interval: Tuple[int, int]) -> Tupl
     :param n_clusters_interval: (min number of clusters, max number of clusters) for silhouette analysis
     :return: list of labels, list of centroid coordinates, optimal silhouette score
     """
-
     assert n_clusters_interval[0] >= 2, 'Min number of clusters must be >= 2'
     range_n_clusters = np.arange(n_clusters_interval[0], n_clusters_interval[1])
     optimal_score = -1
@@ -43,11 +44,14 @@ def cluster_data(data: np.ndarray, n_clusters_interval: Tuple[int, int]) -> Tupl
     for n_clusters in range_n_clusters:
         clusterer = KMeans(n_clusters=n_clusters)
         cluster_labels = clusterer.fit_predict(data)
-        silhouette_avg = silhouette_score(data, cluster_labels)  # throws ValueError
-        print("For n_clusters = {}, the average silhouette score is: {}".format(n_clusters, silhouette_avg))
-        if silhouette_avg > optimal_score:
-            optimal_score = silhouette_avg
-            optimal_n_clusters = n_clusters
+        try:
+            silhouette_avg = silhouette_score(data, cluster_labels)  # throws ValueError
+            print("For n_clusters = {}, the average silhouette score is: {}".format(n_clusters, silhouette_avg))
+            if silhouette_avg > optimal_score:
+                optimal_score = silhouette_avg
+                optimal_n_clusters = n_clusters
+        except Exception as ex:
+            optimal_n_clusters = 1
 
     assert optimal_n_clusters != -1, 'Error in silhouette analysis'
     print('Best score is {} for n_cluster = {}'.format(optimal_score, optimal_n_clusters))
@@ -84,7 +88,7 @@ def load_data_all(dst, features):
                     inputs.append([json_data["sample_nodes"], f"{y2}-{y1}", json_data['misbehaviour'], float(json_data["distance to target"]), json_data["elapsed"]])
                     if float(json_data["distance to target"]) == 0:
                         inputs_target.append([json_data["sample_nodes"], f"{y2}-{y1}", json_data['misbehaviour'], float(json_data["distance to target"]), json_data["elapsed"]])
-                          
+    print(len(inputs))                            
     return inputs, inputs_target
 
 
@@ -100,7 +104,7 @@ def load_data(dst, i, approach, div):
     inputs_target = []
     for subdir, dirs, files in os.walk(dst, followlinks=False):
         # Consider only the files that match the pattern
-        if i+approach in subdir and div in subdir:
+        if i+approach in subdir and div in subdir and "output" in subdir:
             for json_path in [os.path.join(subdir, f) for f in files if f.endswith("road.json")]:
                 print(".", end='', flush=True)  
 
@@ -113,11 +117,12 @@ def load_data(dst, i, approach, div):
         
                 with open(json_path) as jf:
                     json_data = json.load(jf)
+
                 if json_data["misbehaviour"] == True:
                     inputs.append([json_data["sample_nodes"], f"{y2}-{y1}", json_data['misbehaviour'], float(json_data["distance to target"]), json_data["elapsed"]])
                     if float(json_data["distance to target"]) == 0:
                         inputs_target.append([json_data["sample_nodes"], f"{y2}-{y1}", json_data['misbehaviour'], float(json_data["distance to target"]), json_data["elapsed"]])
-                          
+                    
     return inputs, inputs_target
 
 
@@ -139,7 +144,7 @@ def plot_tSNE(inputs, _folder, features, div, ii=0):
     X = np.array(X)
 
     feat_cols = ['points'+str(i) for i in range(X.shape[1])]
-    df = pd.DataFrame(X,columns=feat_cols)
+    df = pd.DataFrame(X, columns=feat_cols)
     df['y'] = y
     df['label'] = df['y'].apply(lambda i: str(i))
 
@@ -187,9 +192,9 @@ def compute_tSNE_and_cluster_all(inputs, targets, _folder, features, div, ii=0):
 
         df = plot_tSNE(inputs, _folder, features, div, ii)    
         df = df.reset_index()  # make sure indexes pair with number of rows
+    
 
-        
-        np_data_cols = df.iloc[:,691:693]
+        np_data_cols = df.iloc[:,403:405]
 
         n = len(inputs) - 1
         labels, centers = cluster_data(data=np_data_cols, n_clusters_interval=(2, n))
@@ -198,7 +203,7 @@ def compute_tSNE_and_cluster_all(inputs, targets, _folder, features, div, ii=0):
         data_with_clusters['Clusters'] = np.array(labels)
         fig = plt.figure(figsize=(10, 10))
         plt.scatter(data_with_clusters['tsne-2d-one'],data_with_clusters['tsne-2d-two'], c=data_with_clusters['Clusters'], cmap='rainbow')
-        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-0.1.pdf", format='pdf')
+        fig.savefig(f"{_folder}/cluster-diag-{features}-{div}-{ii}-1.pdf", format='pdf')
         
         df_nsga2 = df[df.label == "NSGA2-INPUT"]
         df_ga = df[df.label =="GA-INPUT"]
@@ -225,7 +230,7 @@ def compute_tSNE_and_cluster_all(inputs, targets, _folder, features, div, ii=0):
         df = plot_tSNE(targets, _folder, features, div, ii)    
         df = df.reset_index()  # make sure indexes pair with number of rows
         
-        np_data_cols = df.iloc[:,691:693]
+        np_data_cols = df.iloc[:,403:405]
 
         n = len(targets) - 1
         labels, centers = cluster_data(data=np_data_cols, n_clusters_interval=(2, n))
@@ -259,17 +264,17 @@ def compute_tSNE_and_cluster_all(inputs, targets, _folder, features, div, ii=0):
 
 def find_best_div_approach(dst, feature_combinations):
 
-    evaluation_area = ["target_cell_in_dark", "target_cell_in_grey"] 
+    evaluation_area = ["target_cell_in_grey"] # "target_cell_in_dark","target_cell_in_grey"
 
 
     for evaluate in evaluation_area:
         
         for features in feature_combinations:
-            for i in range(1, 6):
+            for i in range(1, 11):
                 inputs = []
                 targets = []
                 for subdir, _, _ in os.walk(f"{dst}/{evaluate}/{features}", followlinks=False):
-                    if features in subdir and str(i)+"-" in subdir and evaluate in subdir and "sim_" in subdir:
+                    if features in subdir and str(i)+"-" in subdir and evaluate in subdir and "output" in subdir and "sim_" not in subdir:
                         data_folder = subdir
                         all_inputs, all_targets = load_data_all(data_folder, features)
                         inputs = inputs + all_inputs
@@ -308,14 +313,13 @@ def generate_features(FEATURES):
         f1 = Feature("curvature",meta["curvature"]["min"], meta["curvature"]["max"], "curvature", 25)
         features.append(f1)
     if "SegmentCount" in FEATURES:
-        f2 = Feature("segment_count",meta["segment_count"]["min"], meta["segment_count"]["max"], "segment_count", 8)
+        f2 = Feature("segment_count",meta["segment_count"]["min"], meta["segment_count"]["max"], "segment_count", int(meta["segment_count"]["max"])+1)
         features.append(f2)
     if "SDSteeringAngle" in FEATURES:
         f1 = Feature("sd_steering_angle",meta["sd_steering_angle"]["min"], meta["sd_steering_angle"]["max"], "sd_steering", 25)
         features.append(f1)
     return features
        
-
 
 def compute_targets_for_dh(dst, goal, features, metric):
     fts = generate_features(features)
@@ -324,7 +328,7 @@ def compute_targets_for_dh(dst, goal, features, metric):
     archive_samples = []
     _config = cfg.BeamNGConfig()
     _config.name = ""
-    problem = BeamNGProblem.BeamNGProblem(_config)
+
     for subdir, _, files in os.walk(dst, followlinks=False):
         for json_path in [os.path.join(subdir, f) for f in files if
                         (
@@ -334,88 +338,100 @@ def compute_targets_for_dh(dst, goal, features, metric):
 
             with open(json_path) as jf:
                 data = json.load(jf)
-
-
             
-            nodes = data["road"]["nodes"]
-            bbox_size=(-250, 0, 250, 500)
-            member = BeamNGMember(nodes, nodes, 20, RoadBoundingBox(bbox_size))
-            records = data["records"]
-            simulation_id = time.strftime('%Y-%m-%d--%H-%M-%S', time.localtime())
-            sim_name = simulation_id # member.config.simulation_name.replace('$(id)', simulation_id)
-            simulation_data = SimulationData(sim_name)
-            states = []
-            for record in records:
-                state = VehicleState(timer=record["timer"]
-                                    , damage=record["damage"]
-                                    , pos=record["pos"]
-                                    , dir=record["dir"]
-                                    , vel=record["vel"]
-                                    , gforces=record["gforces"]
-                                    , gforces2=record["gforces2"]
-                                    , steering=record["steering"]
-                                    , steering_input=record["steering_input"]
-                                    , brake=record["brake"]
-                                    , brake_input=record["brake_input"]
-                                    , throttle=record["throttle"]
-                                    , throttle_input=record["throttle_input"]
-                                    , throttleFactor=record["throttleFactor"]
-                                    , engineThrottle=record["engineThrottle"]
-                                    , wheelspeed=record["engineThrottle"]
-                                    , vel_kmh=record["engineThrottle"])
+            for info_path in [os.path.join(subdir, f) for f in files if
+                        (
+                            f.startswith("info") and
+                            f.endswith(".json")
+                        )]:
 
-                sim_data_record = SimulationDataRecord(**state._asdict(),
-                                                    is_oob=record["is_oob"],
-                                                    oob_counter=record["oob_counter"],
-                                                    max_oob_percentage=record["max_oob_percentage"],
-                                                    oob_distance=record["oob_distance"])
-                states.append(sim_data_record)
+                with open(info_path) as ff:
+                    info_data = json.load(ff)            
+                            
+                nodes = data["road"]["nodes"]
+                bbox_size=(-250, 0, 250, 500)
+                member = BeamNGMember(nodes, nodes, 20, RoadBoundingBox(bbox_size))
+                records = data["records"]
+                simulation_id = time.strftime('%Y-%m-%d--%H-%M-%S', time.localtime())
+                sim_name = simulation_id # member.config.simulation_name.replace('$(id)', simulation_id)
+                simulation_data = SimulationData(sim_name)
+                states = []
+                for record in records:
+                    state = VehicleState(timer=record["timer"]
+                                        , damage=record["damage"]
+                                        , pos=record["pos"]
+                                        , dir=record["dir"]
+                                        , vel=record["vel"]
+                                        , gforces=record["gforces"]
+                                        , gforces2=record["gforces2"]
+                                        , steering=record["steering"]
+                                        , steering_input=record["steering_input"]
+                                        , brake=record["brake"]
+                                        , brake_input=record["brake_input"]
+                                        , throttle=record["throttle"]
+                                        , throttle_input=record["throttle_input"]
+                                        , throttleFactor=record["throttleFactor"]
+                                        , engineThrottle=record["engineThrottle"]
+                                        , wheelspeed=record["engineThrottle"]
+                                        , vel_kmh=record["engineThrottle"])
 
-            simulation_data.params = SimulationParams(beamng_steps=data["params"]["beamng_steps"], delay_msec=int(data["params"]["delay_msec"]))
-            simulation_data.control_nodes = nodes
-            simulation_data.road = DecalRoad.from_dict(data["road"])
-            simulation_data.info = SimulationInfo()
-            simulation_data.info.start_time = data["info"]["start_time"]
-            simulation_data.info.end_time = data["info"]["end_time"]
-            simulation_data.info.elapsed_time = data["info"]["elapsed_time"]
-            simulation_data.info.success = data["info"]["success"]
-            simulation_data.info.computer_name = data["info"]["computer_name"]
-            simulation_data.info.id = data["info"]["id"]
+                    sim_data_record = SimulationDataRecord(**state._asdict(),
+                                                        is_oob=record["is_oob"],
+                                                        oob_counter=record["oob_counter"],
+                                                        max_oob_percentage=record["max_oob_percentage"],
+                                                        oob_distance=record["oob_distance"])
+                    states.append(sim_data_record)
 
-            simulation_data.states = states
+                simulation_data.params = SimulationParams(beamng_steps=data["params"]["beamng_steps"], delay_msec=int(data["params"]["delay_msec"]))
+                simulation_data.control_nodes = nodes
+                simulation_data.road = DecalRoad.from_dict(data["road"])
+                simulation_data.info = SimulationInfo()
+                simulation_data.info.start_time = data["info"]["start_time"]
+                simulation_data.info.end_time = data["info"]["end_time"]
+                simulation_data.info.elapsed_time = data["info"]["elapsed_time"]
+                simulation_data.info.success = data["info"]["success"]
+                simulation_data.info.computer_name = data["info"]["computer_name"]
+                simulation_data.info.id = data["info"]["id"]
 
-            if len(states) > 0:
-                member.distance_to_boundary = simulation_data.min_oob_distance()
-                member.simulation = simulation_data
-                misbehaviour = states[-1].is_oob
-            else:
-                misbehaviour = False
-                break
-            
-            ind = BeamNGIndividual.BeamNGIndividual(member, _config)
-            sample = Sample(ind)
-            #us.is_oob(sample.ind.sample_nodes, sample.ind.member.simulation.states)
-            
-            sample.misbehaviour = misbehaviour
+                simulation_data.states = states
 
-            sample.features["curvature"] = us.curvature(sample)
-            sample.features["segment_count"] = us.segment_count(sample)
-
-
-            b = tuple()
-            for ft in fts:
-                i = ft.get_coordinate_for(sample)
-                if i != None:
-                    b = b + (i,)
+                if len(states) > 0:
+                    member.distance_to_boundary = simulation_data.min_oob_distance()
+                    member.simulation = simulation_data
+                    member.sample_nodes = nodes # catmull_rom(member.control_nodes, member.num_spline_nodes)
+                    misbehaviour = states[-1].is_oob
+                    oob_ff = states[-1].oob_distance
                 else:
-                    b = np.inf
-            
-            sample.distance_to_target = us.manhattan(b, goal)
+                    misbehaviour = False
+                    break
+                
+                ind = BeamNGIndividual.BeamNGIndividual(member, _config)
+                ind.oob_ff = oob_ff
+                sample = Sample(ind)
+                #us.is_oob(sample.ind.sample_nodes, sample.ind.member.simulation.states)
+                
+                sample.misbehaviour = misbehaviour
 
-            if sample.distance_to_target <= TARGET_THRESHOLD and misbehaviour == True:
-                print(".", end='', flush=True)
-                samples.append(sample)
-                count += 1
+                sample.elapsed = "00:00:0.0"
+
+                sample.features["curvature"] = info_data["features"]["curvature"]
+                sample.features["segment_count"] = info_data["features"]["segment_count"]
+                sample.features["sd_steering_angle"] = info_data["features"]["sd_steering"]
+
+
+                b = tuple()
+                for ft in fts:
+                    i = ft.get_coordinate_for(sample)
+                    if i != None:
+                        b = b + (i,)
+                    else:
+                        b = np.inf
+                
+                sample.distance_to_target = us.manhattan(b, goal)
+
+                if sample.distance_to_target <= TARGET_THRESHOLD:
+                    samples.append(sample)
+                    count += 1
 
 
     archive = []
@@ -444,11 +460,11 @@ def compute_targets_for_dh(dst, goal, features, metric):
                     archive[idx_min].sparseness = dmin
                 elif c.distance_to_target == sample.distance_to_target:
                     # ind has better performance
-                    if sample.ff < c.ff:
+                    if sample.ind.oob_ff < c.ind.oob_ff:
                         archive.append(sample)
                         archive[idx_min].sparseness = dmin
                     # c and ind have the same performance
-                    elif sample.ff == c.ff:
+                    elif sample.ind.oob_ff == c.ind.oob_ff:
                         # ind has better sparseness                        
                         if dmin > c.sparseness:
                             archive.append(sample)
@@ -456,20 +472,23 @@ def compute_targets_for_dh(dst, goal, features, metric):
 
     target_samples = []
     for sample in archive:
-        if sample.is_misbehavior() == True:
-            archive_samples.append([sample.ind.m.sample_nodes, f"DeepHyperion", sample.predicted_label, sample.distance_to_target, sample.elapsed])
+        if sample.misbehaviour == True:
+            print(".", end='', flush=True)
+            archive_samples.append([sample.ind.m.sample_nodes, f"DeepHyperion", sample.misbehaviour, sample.distance_to_target, sample.elapsed])
             if sample.distance_to_target == 0:
-                target_samples.append([sample.ind.m.sample_nodes, f"DeepHyperion", sample.predicted_label, sample.distance_to_target, sample.elapsed])
+                target_samples.append([sample.ind.m.sample_nodes, f"DeepHyperion", sample.misbehaviour, sample.distance_to_target, sample.elapsed])
 
 
     print("DeepHyperion", features, len(archive_samples))
     return archive_samples, target_samples
+
 
 def elapsed_to_millisec(elapsed):
     # compute milli seconds for sample's elapsed time
     times = re.split(r"[:.]", elapsed)
     millisecs = float(times[0])*3600+float(times[1])*60+float(times[2])+float(times[3])/1000000.
     return millisecs
+
 
 def compute_metrics(inputs_da, targets_da, inputs_dh, targets_dh, _folder, features, approach, div, ii=0, num=10):
     div_da = 0
@@ -498,12 +517,13 @@ def compute_metrics(inputs_da, targets_da, inputs_dh, targets_dh, _folder, featu
     auc_deephyperion = np.trapz(x = time_data, y= input_data)
     
     inputs = inputs_da + inputs_dh
+
+
     if len(inputs) > 3:
         df = plot_tSNE(inputs, _folder, features, div, ii)
 
         df = df.reset_index()  # make sure indexes pair with number of rows
-        np_data_cols = df.iloc[:,691:693]
-
+        np_data_cols = df.iloc[:,403:405]
 
         n = len(inputs) - 1
         labels, centers = cluster_data(data=np_data_cols, n_clusters_interval=(2, n))
@@ -534,7 +554,7 @@ def compute_metrics(inputs_da, targets_da, inputs_dh, targets_dh, _folder, featu
         df = plot_tSNE(targets, _folder, features, div, ii)
 
         df = df.reset_index()  # make sure indexes pair with number of rows
-        np_data_cols = df.iloc[:,691:693]
+        np_data_cols = df.iloc[:,403:405]
 
 
         n = len(inputs) - 1
@@ -571,7 +591,6 @@ def compare_with_dh(approach, div, features, target_area):
 
     result_folder = f"../experiments/data/bng/comparison/{target_area}"
     Path(result_folder).mkdir(parents=True, exist_ok=True)
-
     
     for feature in features:
 
@@ -579,7 +598,7 @@ def compare_with_dh(approach, div, features, target_area):
         dst_dh = f"../experiments/data/bng/DeepHyperion/{feature[0]}"
 
 
-        for i in range(1, 6):
+        for i in range(1, 11):
             for subdir, _, _ in os.walk(dst_dh, followlinks=False):
                 if "dh-"+str(i) in subdir and "beamng_nvidia_runner" in subdir:
                     inputs_dh, targets_dh = compute_targets_for_dh(subdir, feature[1], feature[0], div)
@@ -616,16 +635,16 @@ def compare_with_dh(approach, div, features, target_area):
 if __name__ == "__main__": 
     if sys.argv[1] == "dark": 
         features = [ ("Curvature-SegmentCount", (22, 6))]
-        compare_with_dh("nsga2", "INPUT", features, "target_cell_in_dark")
+        compare_with_dh("ga", "INPUT", features, "target_cell_in_dark")
     elif sys.argv[1] == "grey": 
-        features = [("Curvature-SegmentCount",(20, 4))]
-        compare_with_dh("nsga2", "INPUT", features, "target_cell_in_grey")
-    elif sys.argv[1] == "white":
-        features = [("Curvature-SegmentCount",(10, 2))]
-        compare_with_dh("nsga2", "INPUT", features, "target_cell_in_white")
+        features = [("SegmentCount-SDSteeringAngle",(7, 17))]
+        compare_with_dh("ga", "INPUT", features, "target_cell_in_grey")
+    elif sys.argv[1] == "ga":
+        features = [("Curvature-SegmentCount",(22, 5))]
+        compare_with_dh("ga", "INPUT", features, "target_cell_in_white")
     else:
         dst = "../experiments/data/bng/DeepAtash"
-        feature_combinations = ["Curvature-SegmentCount"]
+        feature_combinations = ["SegmentCount-SDSteeringAngle"]
         find_best_div_approach(dst, feature_combinations)
 
 

@@ -18,11 +18,8 @@ class Feature:
         self.min_value = min_value
         self.max_value = max_value
         self.num_cells = num_cells
-        self.original_bins = np.linspace(min_value, max_value, num_cells)
-        if min_value < 0:
-            self.abs_bins = np.linspace(0, max_value + abs(min_value), num_cells)
-        else:
-            self.abs_bins = np.linspace(min_value, max_value, num_cells)
+        self.bins = np.linspace(min_value, max_value, num_cells)
+
 
 
     def feature_descriptor(self, sample: Sample):
@@ -51,17 +48,17 @@ class Feature:
 
         if value < self.min_value:
             print(f"Sample %s has value %s below the min value %s for feature %s", sample.id, value, self.min_value, self.feature_name)
+            return None
         elif value > self.max_value:
             print(f"Sample %s has value %s above the max value %s for feature %s",  sample.id, value, self.max_value, self.feature_name)
+            return None
 
-        if self.min_value < 0:
-            value = value + abs(self.min_value)
-
-        return np.digitize(value, self.abs_bins, right=False)
+        coordinate = np.digitize(value, self.bins, right=False) - 1
+        return coordinate
 
     def get_bins_labels(self):
         """
         Note that here we return explicitly the last bin
         Returns: All the bins plus the default
         """
-        return self.original_bins
+        return self.bins
