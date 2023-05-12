@@ -19,7 +19,7 @@ FEATURES         = ["NegCount", "VerbCount"] # ["NegCount", "PosCount", "VerbCou
 
 NUM_CELLS        = 25
 
-GOAL             = (4, 11)
+GOAL             = (4, 12)
 
 DISTANCE        = 5
 
