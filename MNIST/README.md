@@ -8,7 +8,7 @@ This tool is developed in Python on top of the DEAP evolutionary computation fra
 
 ## Dependencies ##
 
-> NOTE: If you want to use DeepAtash-MNIST easily without configuring your environment from scratch, you can also see [__Getting Started__](../documentation/getting_started.md)
+> NOTE: If you want to use DeepAtash/MNIST easily without configuring your environment from scratch, you can also see [__Getting Started__](../documentation/getting_started.md)
 
 ### Configuring Ubuntu ###
 Pull an Ubuntu Docker image, run and configure it by typing in the terminal:
@@ -29,11 +29,11 @@ apt install -y git
 
 ### Copy the project into the docker container ###
 
-To copy DeepAtash-MNIST inside the docker container, open another console and run:
+To copy DeepAtash/MNIST inside the docker container, open another console and run:
 
 ``` 
 cd <DEEP_ATASH_HOME>
-docker cp DeepAtash-MNIST/ <DOCKER_ID>:/
+docker cp DeepAtash/MNIST/ <DOCKER_ID>:/
 ```
 
 Where `<DEEP_ATASH_HOME>` is the location in which you downloaded the artifact and `<DOCKER_ID>` is the ID of the ubuntu docker image just started.
@@ -94,7 +94,7 @@ apt-get install python3.8-dev python3.8-venv
 Create the python virtual environment:
 
 ```
-cd /DeepAtash-MNIST
+cd /DeepAtash/MNIST
 python3 -m venv .venv
 ```
 
@@ -135,7 +135,7 @@ apt install -y libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev g
 This tool has other dependencies, including `tensorflow` and `deap`, that can be installed via `pip`:
 
 ```
-cd /DeepAtash-MNIST
+cd /DeepAtash/MNIST
 pip install -r requirements.txt
 ``` 
 
