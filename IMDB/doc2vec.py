@@ -134,7 +134,7 @@ def extract_documents():
                 yield create_sentiment_document(member.name, member_text, index)
                 index += 1
 
-# alldocs = list(extract_documents())
+alldocs = list(extract_documents())
 from smart_open import smart_open
 alldocs = []
 with smart_open('aclImdb/alldata-id.txt', 'rb', encoding='utf-8') as alldata:
