@@ -26,11 +26,11 @@ apt install -y git
 
 ### Copy the project into the docker container ###
 
-To copy DeepAtash-IMDB inside the docker container, open another console and run:
+To copy DeepAtash/IMDB inside the docker container, open another console and run:
 
 ``` 
 cd <DEEP_ATASH_HOME>
-docker cp DeepAtash-IMDB/ <DOCKER_ID>:/
+docker cp DeepAtash/IMDB/ <DOCKER_ID>:/
 ```
 
 Where `<DEEP_ATASH_HOME>` is the location in which you downloaded the artifact and `<DOCKER_ID>` is the ID of the ubuntu docker image just started.
@@ -91,7 +91,7 @@ apt-get install python3.8-dev python3.8-venv
 Create the python virtual environment:
 
 ```
-cd /DeepAtash-MNIST
+cd /DeepAtash/IMDB
 python3 -m venv .venv
 ```
 
@@ -107,7 +107,7 @@ pip install --upgrade pip
 This tool has other dependencies, including `tensorflow` and `deap`, that can be installed via `pip`:
 
 ```
-cd /DeepAtash-IMDB
+cd /DeepAtash/IMDB
 pip install -r requirements.txt
 ``` 
 
@@ -116,6 +116,14 @@ pip install -r requirements.txt
 
 * A trained model in h5 format. The default one is in the folder `models`;
 * `config.py` containing the configuration of the tool selected by the user.
+
+### Train Doc2Vec Model ###
+
+For using latent space sparseness, we need to train a doc2vec model:
+
+```
+python doc2vec.py
+```
 
 ### Run the Tool ###
 
