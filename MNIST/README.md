@@ -47,13 +47,16 @@ CONTAINER ID   IMAGE           COMMAND       CREATED          STATUS          PO
 13e590d65e60   ubuntu:bionic   "/bin/bash"   2 minutes ago   Up 2 minutes             recursing_bhabha
 ```
 
-### Installing Python 3.6 ###
-Install Python 3.6:
+### Installing Python 3.7 ###
+Install Python 3.7:
 
 ``` 
 add-apt-repository ppa:deadsnakes/ppa
 apt update
-apt install -y python3.6
+apt install -y python3.7
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 2
+update-alternatives --config python3
+Press <enter> to keep the current choice[*], or type selection number: 2
 ```
 
 And check if it is correctly installed, by typing the following command:
@@ -61,10 +64,10 @@ And check if it is correctly installed, by typing the following command:
 ``` 
 python3 -V
 
-Python 3.6.9
+Python 3.7.9
 ```
 
-Check that the version of python matches `3.6.*`.
+Check that the version of python matches `3.7.*`.
 
 ### Installing pip ###
 
@@ -87,7 +90,7 @@ pip 21.3.1 from /usr/local/lib/python3.6/dist-packages/pip (python 3.6)
 Install the `venv` module in the docker container:
 
 ``` 
-apt install -y python3-venv
+apt-get install python3.7-dev python3.7-venv
 ```
 
 Create the python virtual environment:
