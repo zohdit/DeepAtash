@@ -1,0 +1,20 @@
+{
+    "features": {
+        "bitmaps": {
+            "max": 204.0,
+            "min": 2.0,
+            "missing": 0
+        },
+        "moves": {
+            "max": 33.0,
+            "min": 0.0,
+            "missing": 0
+        },
+        "orientation": {
+            "max": 175.0,
+            "min": -169.0,
+            "missing": 0
+        }
+    },
+    "total": 1532066
+}
