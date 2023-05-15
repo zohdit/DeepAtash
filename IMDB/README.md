@@ -117,12 +117,16 @@ pip install -r requirements.txt
 * A trained model in h5 format. The default one is in the folder `models`;
 * `config.py` containing the configuration of the tool selected by the user.
 
-### Train Doc2Vec Model ###
+### Prepare Doc2Vec Model ###
 
 For using latent space sparseness, we need to train a doc2vec model:
 
 ```
 python doc2vec.py
+```
+Or altenatively you can use the pre-trained model provided in the repo:
+```
+tar -xvf doc2vec.tar.gz
 ```
 
 ### Run the Tool ###
