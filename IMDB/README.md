@@ -128,6 +128,7 @@ Or altenatively you can use the pre-trained model provided in the repo:
 ```
 cd models
 tar -xvf doc2vec.tar.gz
+ar -xvf doc2vec-vectors 
 cd ..
 ```
 

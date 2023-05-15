@@ -8,13 +8,13 @@ Follow the steps below to set up DeepAtash and validate its general functionalit
 Pull our pre-configured Docker image for DeepAtash-MNIST:
 
 ``` 
-docker pull zohdit/deephyperion:v1.2
+docker pull anonissta/deepatash-image:v1.0
 ```
 
 Run it by typing in the terminal the following commands:
 
 ```
-docker run -it --rm zohdit/deephyperion:v1.2
+docker run -it --rm anonissta/deepatash-image:v1.0
 . .venv/bin/activate
 ```
 
@@ -23,12 +23,12 @@ Use the following commands to start a 10 mins run of DeepAtash-MNIST with ga alg
 
 ```
 cd DeepAtash/DeepAtash-MNIST
-python ga_method.py
+python deepatash_mnist.py
 ```
 
 > NOTE: `config.py` contains the tool configuration. You should edit this file to change the configuration. For example, if you want to run <i>DeepAtash-MNIST</i> with the same configuration as in the paper, you need to set the `RUNTIME` variable inside `config.py` as follows:
 ```
-RUNTIME  =3600
+RUNTIME  = 3600
 ```
 
 When the run ends, on the console you should see a message like this:
@@ -46,18 +46,17 @@ The tool produces the following outputs in the `logs/run_XXX` folder (where XXX 
 
 
 
-
 ## Step 3: Reproduce Experimental Results ##
 
 In case you want to regenerate the tables in the paper without re-running all the 100h+ of experiments, we provided the data of all runs of all the tools in `experiments/data`. 
 
 To regenerate the table values reported in the paper, run the commands we report below on the provided docker.
-> **NOTE**: Be sure to deactivate the virtual environment you used for steps 1 -- 2 (simply by running the `deactivate` command) and activate the one inside the `experiments` folder. 
-> Despite they share the same name, those virtual environments contain different libraries.
 
 ```
-cd /DeepAtash/experiments
+cd /DeepAtash/MNIST
 . .venv/bin/activate
+cd ..
+cd experiments
 python rq1.py
 python rq2.py
 python rq3.py
