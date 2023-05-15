@@ -80,8 +80,8 @@ class Archive:
             ind.sparseness, _ = evaluator.evaluate_sparseness(ind, self.archive)
 
     def export_archive(self, dst):
-        if not exists(dst):
+        if not exists(dst+"/output"):
             makedirs(dst+"/output")
         for ind in self.archive:
             print(".", end='', flush=True)
-            ind.export(dst)
+            ind.export(dst+"/output")

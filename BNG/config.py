@@ -31,9 +31,9 @@ POPSIZE          = 10
 FEATURES         = ["SegmentCount", "SDSteeringAngle"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
 NUM_CELLS        = 25
 
-APPROACH        = "ga"
+APPROACH        = "nsga2" # ["ga", "nsga2"]
 
-RUN_ID          = 5
+RUN_ID          = 1
 
 GOAL             = (8, 10)
 
