@@ -56,7 +56,10 @@ To regenerate the table values reported in the paper, run the commands we report
 cd /DeepAtash/MNIST
 . .venv/bin/activate
 cd ..
-cd experiments
+cd experiments/data
+tar -xvf mnist-data
+tar -xvf imdb-data
+cd ..
 python rq1.py
 python rq2.py
 python rq3.py
