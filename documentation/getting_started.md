@@ -14,7 +14,7 @@ docker pull anonissta/deepatash-image:v1.0
 Run it by typing in the terminal the following commands:
 
 ```
-docker run -it --rm anonissta/deepatash-imagen:v1.0
+docker run -it --rm anonissta/deepatash-image:v1.0
 . .venv/bin/activate
 ```
 
@@ -51,12 +51,12 @@ The tool produces the following outputs in the `logs/run_XXX` folder (where XXX 
 In case you want to regenerate the tables in the paper without re-running all the 100h+ of experiments, we provided the data of all runs of all the tools in `experiments/data`. 
 
 To regenerate the table values reported in the paper, run the commands we report below on the provided docker.
-> **NOTE**: Be sure to deactivate the virtual environment you used for steps 1 -- 2 (simply by running the `deactivate` command) and activate the one inside the `experiments` folder. 
-> Despite they share the same name, those virtual environments contain different libraries.
 
 ```
-cd /DeepAtash/experiments
+cd /DeepAtash/MNIST
 . .venv/bin/activate
+cd ..
+cd experiments
 python rq1.py
 python rq2.py
 python rq3.py
