@@ -126,7 +126,9 @@ python doc2vec.py
 ```
 Or altenatively you can use the pre-trained model provided in the repo:
 ```
+cd models
 tar -xvf doc2vec.tar.gz
+cd ..
 ```
 
 ### Run the Tool ###
