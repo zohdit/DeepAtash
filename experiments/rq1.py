@@ -37,7 +37,7 @@ def load_data_from_folder(dataset_folder, allowed_features_combination=None):
                 if "target num tsne clusters" in map_dict:
                     map_dict["target num tsne clusters"] = float(map_dict["target num tsne clusters"])
                 if "target num tsne clustes" in map_dict:
-                    map_dict["target num tsne clusters"] = float(map_dict["target num tsne clusters"])
+                    map_dict["target num tsne clusters"] = float(map_dict["target num tsne clustes"])
 
                 if the_data is None:
                     # Creates the DataFrame
