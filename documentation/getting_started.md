@@ -8,13 +8,13 @@ Follow the steps below to set up DeepAtash and validate its general functionalit
 Pull our pre-configured Docker image for DeepAtash-MNIST:
 
 ``` 
-docker pull zohdit/deephyperion:v1.2
+docker pull anonissta/deepatash-image:v1.0
 ```
 
 Run it by typing in the terminal the following commands:
 
 ```
-docker run -it --rm zohdit/deephyperion:v1.2
+docker run -it --rm anonissta/deepatash-imagen:v1.0
 . .venv/bin/activate
 ```
 
@@ -23,12 +23,12 @@ Use the following commands to start a 10 mins run of DeepAtash-MNIST with ga alg
 
 ```
 cd DeepAtash/DeepAtash-MNIST
-python ga_method.py
+python deepatash_mnist.py
 ```
 
 > NOTE: `config.py` contains the tool configuration. You should edit this file to change the configuration. For example, if you want to run <i>DeepAtash-MNIST</i> with the same configuration as in the paper, you need to set the `RUNTIME` variable inside `config.py` as follows:
 ```
-RUNTIME  =3600
+RUNTIME  = 3600
 ```
 
 When the run ends, on the console you should see a message like this:
@@ -43,7 +43,6 @@ The tool produces the following outputs in the `logs/run_XXX` folder (where XXX 
 * `log.txt`:the log info of the whole run;
 * `config.json`: file containing the configuration used for the run;
 * generated inputs close and within the target area  (in image and npy formats);
-
 
 
 
