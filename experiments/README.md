@@ -103,11 +103,6 @@ pip install -r requirements.txt
 
 ## (Re)Generate the plots ##
 
-
-```
-cd DeepAtash/experiments
-
-```
 To regenerate the plots, run the following command from the **current** folder:
 ```
 cd data
