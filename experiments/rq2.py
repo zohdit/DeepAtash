@@ -142,7 +142,7 @@ def preprare_the_figure(plot_data):
 
 if __name__ == "__main__": 
 
-    mnist_data = load_data_from_folder("./data/mnist/target_cell_in_dark")
+    mnist_data = load_data_from_folder("./data/mnist/comparison/target_cell_in_dark")
     mnist_figure = preprare_the_figure(mnist_data)
 
     # Store
@@ -150,14 +150,14 @@ if __name__ == "__main__":
     store_figure_to_paper_folder(mnist_figure, file_name=f"RQ2-MNIST-dark")
 
 
-    mnist_data = load_data_from_folder("./data/mnist/target_cell_in_grey")
+    mnist_data = load_data_from_folder("./data/mnist/comparison/target_cell_in_grey")
     mnist_figure = preprare_the_figure(mnist_data)
 
     # Store
     create_the_table(mnist_data, file_name=f"RQ2-MNIST-grey-table")
     store_figure_to_paper_folder(mnist_figure, file_name=f"RQ2-MNIST-grey")
 
-    mnist_data = load_data_from_folder("./data/mnist/target_cell_in_white")
+    mnist_data = load_data_from_folder("./data/mnist/comparison/target_cell_in_white")
     mnist_figure = preprare_the_figure(mnist_data)
 
     # Store
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     store_figure_to_paper_folder(mnist_figure, file_name=f"RQ2-MNIST-white")
 
 
-    imdb_data = load_data_from_folder("./data/imdb/target_cell_in_dark")
+    imdb_data = load_data_from_folder("./data/imdb/comparison/target_cell_in_dark")
     imdb_figure = preprare_the_figure(imdb_data)
 
     # Store
@@ -173,14 +173,14 @@ if __name__ == "__main__":
     store_figure_to_paper_folder(imdb_figure, file_name=f"RQ2-IMDB-dark")
 
 
-    imdb_data = load_data_from_folder("./data/imdb/target_cell_in_grey")
+    imdb_data = load_data_from_folder("./data/imdb/comparison/target_cell_in_grey")
     imdb_figure = preprare_the_figure(imdb_data)
 
     # Store
     create_the_table(imdb_data, file_name=f"RQ2-IMDB-grey-table")
     store_figure_to_paper_folder(imdb_figure, file_name=f"RQ2-IMDB-grey")
 
-    imdb_data = load_data_from_folder("./data/imdb/target_cell_in_white")
+    imdb_data = load_data_from_folder("./data/imdb/comparison/target_cell_in_white")
     imdb_figure = preprare_the_figure(imdb_data)
 
     # Store
