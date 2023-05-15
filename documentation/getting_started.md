@@ -60,6 +60,7 @@ cd experiments/data
 tar -xvf mnist-data
 tar -xvf imdb-data
 cd ..
+mkdir plots
 python rq1.py
 python rq2.py
 python rq3.py
