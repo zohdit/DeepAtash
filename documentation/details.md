@@ -7,7 +7,7 @@ DeepAtash is a tool for generating focused test inputs for deep learning systems
 To set up the environment and run the DeepAtash tool adapted to the handwritten digit classification case study, follow the instructions [here](../MNIST/README.md).
 
 
-## DeepAtash-BNG ##
+## DeepAtash-IMDB ##
 To set up the environment and run the DeepAtash tool adapted to the movie sentiment case study, follow the instructions [here](../IMDB/README.md). 
 
 
