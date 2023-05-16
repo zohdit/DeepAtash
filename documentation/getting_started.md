@@ -15,6 +15,7 @@ Run it by typing in the terminal the following commands:
 
 ```
 docker run -it --rm anonissta/deepatash-image:v1.0
+cd deepatash/MNIST
 . .venv/bin/activate
 ```
 
@@ -22,7 +23,6 @@ docker run -it --rm anonissta/deepatash-image:v1.0
 Use the following commands to start a 10 mins run of DeepAtash-MNIST with ga algorithm and the "Bitmaps - Orientation" combination of features:
 
 ```
-cd deepatash/MNIST
 python deepatash_mnist.py
 ```
 
