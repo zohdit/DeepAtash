@@ -53,7 +53,7 @@ In case you want to regenerate the tables in the paper without re-running all th
 To regenerate the table values reported in the paper, run the commands we report below on the provided docker.
 
 ```
-cd /DeepAtash/MNIST
+cd /DeepAtash/experiments
 . .venv/bin/activate
 cd ..
 cd experiments/data
