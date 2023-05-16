@@ -15,6 +15,7 @@ Pull an Ubuntu Docker image, run and configure it by typing in the terminal:
 docker pull ubuntu:bionic
 docker run -it --rm ubuntu:bionic
 apt-get update && apt-get upgrade -y && apt-get clean
+apt-get install -y software-properties-common
 ```
 
 ### Copy the project into the docker container ###
