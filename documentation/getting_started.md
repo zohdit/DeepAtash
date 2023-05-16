@@ -28,7 +28,7 @@ python deepatash_mnist.py
 
 > NOTE: `config.py` contains the tool configuration. You should edit this file to change the configuration. For example, if you want to run <i>DeepAtash-MNIST</i> with the same configuration as in the paper, you need to set the `RUNTIME` variable inside `config.py` as follows:
 ```
-RUNTIME  = 3600
+RUN_TIME  = 3600
 ```
 
 When the run ends, on the console you should see a message like this:
