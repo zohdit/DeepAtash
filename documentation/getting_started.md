@@ -14,7 +14,7 @@ docker pull anonissta/deepatash-image:v1.0
 Run it by typing in the terminal the following commands:
 
 ```
-docker run -it --rm anonissta/deepatash-image:v1.0
+docker run -it --rm anonissta/deepatash-image:latest
 . .venv/bin/activate
 ```
 
@@ -22,7 +22,7 @@ docker run -it --rm anonissta/deepatash-image:v1.0
 Use the following commands to start a 10 mins run of DeepAtash-MNIST with ga algorithm and the "Bitmaps - Orientation" combination of features:
 
 ```
-cd DeepAtash/DeepAtash-MNIST
+cd deepatash/MNIST
 python deepatash_mnist.py
 ```
 
@@ -53,7 +53,7 @@ In case you want to regenerate the tables in the paper without re-running all th
 To regenerate the table values reported in the paper, run the commands we report below on the provided docker.
 
 ```
-cd /DeepAtash/experiments
+cd /deepatash/experiments
 . .venv/bin/activate
 cd ..
 cd experiments/data
