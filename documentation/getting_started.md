@@ -14,7 +14,7 @@ docker pull anonissta/deepatash-image:v1.0
 Run it by typing in the terminal the following commands:
 
 ```
-docker run -it --rm anonissta/deepatash-image:latest
+docker run -it --rm anonissta/deepatash-image:v1.0
 . .venv/bin/activate
 ```
 
