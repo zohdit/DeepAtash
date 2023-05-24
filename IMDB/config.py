@@ -38,10 +38,12 @@ RUN_TIME = 600
 
 RUN_ID          = 1
 
-APPROACH        = "ga" # ["ga", "nsga2"]
+APPROACH        = "nsga2" # ["ga", "nsga2"]
 
 META_FILE       = "../experiments/data/imdb/DeepHyperion/meta.json"
 
+
+NUM_RETRAIN     = 1 # 10
 
 def to_json(folder):
     config = {

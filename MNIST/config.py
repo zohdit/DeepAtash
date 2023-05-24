@@ -27,7 +27,7 @@ RUN_ID           = 1
 
 DIVERSITY_METRIC =  "LATENT" # ["INPUT", "HEATMAP", "LATENT"] 
 
-APPROACH        = "ga" # ["ga", "nsga2"]
+APPROACH        = "nsga2" # ["ga", "nsga2"]
 
 TARGET_THRESHOLD = 1 # closeness to the target 
 
@@ -44,6 +44,10 @@ MUTUPPERBOUND    = 0.6
 MUTLOWERBOUND    = 0.01
 
 META_FILE       = "../experiments/data/mnist/DeepHyperion/meta.json"
+
+
+NUM_RETRAIN     = 1 # 10
+
 
 
 def to_json(folder):

@@ -26,7 +26,7 @@ Use the following commands to start a 10 mins run of DeepAtash-MNIST with ga alg
 python deepatash_mnist.py
 ```
 
-> NOTE: `config.py` contains the tool configuration. You should edit this file to change the configuration. For example, if you want to run <i>DeepAtash-MNIST</i> with the same configuration as in the paper, you need to set the `RUNTIME` variable inside `config.py` as follows:
+> NOTE: `config.py` contains the tool configuration. You should edit this file to change the configuration. For example, if you want to run <i>DeepAtash-MNIST</i> with the same configuration as in the paper, you need to set the `RUN_TIME` variable inside `config.py` as follows:
 ```
 RUN_TIME  = 3600
 ```
@@ -38,11 +38,12 @@ When the run ends, on the console you should see a message like this:
 Game Over
 ```
 
-The tool produces the following outputs in the `logs/run_XXX` folder (where XXX is the timestamp value):
+The tool produces the following outputs in the `logs/XXX` folder (where XXX is the name of folder based on your configurations):
 
 * `log.txt`:the log info of the whole run;
 * `config.json`: file containing the configuration used for the run;
 * generated inputs close and within the target area  (in image and npy formats);
+
 
 
 

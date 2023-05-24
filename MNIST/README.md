@@ -158,7 +158,34 @@ python deepatash_mnist.py
 
 When the run is finished, the tool produces the following outputs in the `logs` folder:
 
-* folders containing the generated inputs (in image format).
+* folder containing the generated inputs (in image format).
+
+
+### Fine tuning # 
+
+To use the tests generated with DeepAtash for fine tuning the model. You need to run the tool considering three different target areas (i.e. dark, grey and white) of the feature maps. Some suggested target cell are already defined in the `config.py` for each feature combinations:
+
+```
+# these goal cells computed from 10 times of running DeepHyperion (state of the art approach):
+# goal cell for white area mov-lum (11, 3)  or-lum (10, 2) move-or  (17, 10)
+# goal cell for grey area mov-lum (21, 9) or-lum (19, 4) move-or (16, 11)
+# goal cell for dark area mov-lum (6, 0) or-lum (4, 1) move-or (7, 5)
+```
+
+Note: make sure after each run move the output of your run to the corresponding folder based on its target area, as follows:
+```
+mkdir ../experiments/data/mnist/DeepAtash/target_cell_in_dark
+mkdir ../experiments/data/mnist/DeepAtash/target_cell_in_grey
+mkdir ../experiments/data/mnist/DeepAtash/target_cell_in_white
+cp logs/{YOUR_RUN_OUTPUT} ../experiments/data/mnist/DeepAtash/target_cell_in_{YOUR_SELECTED_AREA}/
+```
+
+After having at least one run for each target area and feature combination, you can start retraining the model as follows:
+
+```
+python retrain.py
+```
+
 
 
 ## Troubleshooting ##
