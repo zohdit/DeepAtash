@@ -29,7 +29,10 @@ class Evaluator:
                 individual.distance_to_target = np.inf
         
         individual.coordinate = b
-        individual.distance_to_target = us.manhattan(b, goal)
+        if len(b) > 1:
+            individual.distance_to_target = us.manhattan(b, goal)
+        else:
+            individual.distance_to_target = np.inf
 
 
     def evaluate(self, ind):
