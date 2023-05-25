@@ -28,18 +28,18 @@ K = 1
 GEN              = 1000
 POPSIZE          = 10
 
-FEATURES         = ["SegmentCount", "SDSteeringAngle"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
+FEATURES         = ["Curvature", "SegmentCount"] # Curvature, SDSteeringAngle, SegmentCount, MeanLateralPosition
 NUM_CELLS        = 25
 
-APPROACH        = "nsga2" # ["ga", "nsga2"]
+APPROACH        = "ga" # ["ga", "nsga2"]
 
-RUN_ID          = 1
+RUN_ID          = 6
 
-GOAL             = (8, 10)
+GOAL             = (23, 4)
 
-# goal cell for white area Curv-MLP, Curv
-# goal cell for gray area Curv-MLP , TurnCnt-StdSA (7, 17)
-# goal cell for dark area Curv-MLP (24, 9), Curv-TurnCnt (23, 7)
+# goal cell for white area Curv-MLP, Curv-TurnCnt, TurnCnt-StdSA (8, 10)
+# goal cell for gray area Curv-MLP, Curv-TurnCnt , TurnCnt-StdSA (7, 17)
+# goal cell for dark area Curv-MLP (22, 7), Curv-TurnCnt (23, 4), -
 
 DIVERSITY_METRIC = "INPUT" 
 
