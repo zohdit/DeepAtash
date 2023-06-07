@@ -144,7 +144,7 @@ python deepatash_imdb.py
 
 When the run is finished, the tool produces the following outputs in the `logs` folder:
 
-* folders containing the generated inputs (in image format).
+* folders containing the generated inputs (in txt format).
 
 ### Fine tuning # 
 
