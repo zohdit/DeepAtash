@@ -33,11 +33,11 @@ NUM_CELLS        = 25
 
 APPROACH        = "ga" # ["ga", "nsga2"]
 
-RUN_ID          = 8
+RUN_ID          = 5
 
-GOAL             = (20, 8)
+GOAL             = (24, 6)
 
-# goal cell for white area Curv-MLP , Curv-TurnCnt, TurnCnt-StdSA (8, 10)
+# goal cell for white area Curv-MLP (23, 9), Curv-TurnCnt (24, 6), TurnCnt-StdSA (8, 10)
 # goal cell for gray area Curv-MLP (21, 8), Curv-TurnCnt (20, 8), TurnCnt-StdSA (7, 17)
 # goal cell for dark area Curv-MLP (22, 7), Curv-TurnCnt (23, 4), -
 
@@ -45,7 +45,7 @@ DIVERSITY_METRIC = "INPUT"
 
 META_FILE       = "../experiments/data/bng/DeepHyperion/meta.json"
 
-
+NUM_EXPERIMENTS = 10
 
 RESEEDUPPERBOUND = 2
 

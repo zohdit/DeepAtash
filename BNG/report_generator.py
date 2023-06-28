@@ -2,11 +2,11 @@
 import os
 import sys
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 import json
 from pathlib import Path
 import time
 import matplotlib
-from self_driving.catmull_rom import catmull_rom
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -22,10 +22,9 @@ from self_driving.road_bbox import RoadBoundingBox
 from self_driving.vehicle_state_reader import VehicleState
 from self_driving.beamng_member import BeamNGMember
 from self_driving.decal_road import DecalRoad
-import self_driving.beamng_problem as BeamNGProblem
 import self_driving.beamng_individual as BeamNGIndividual
 import self_driving.beamng_config as cfg
-from config import TARGET_THRESHOLD, META_FILE, TARGET_SIZE
+from config import TARGET_THRESHOLD, META_FILE, TARGET_SIZE, NUM_EXPERIMENTS
 from typing import Tuple, List
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -264,7 +263,7 @@ def compute_tSNE_and_cluster_all(inputs, targets, _folder, features, div, ii=0):
 
 def find_best_div_approach(dst, feature_combinations):
 
-    evaluation_area = ["target_cell_in_grey"] # "target_cell_in_dark","target_cell_in_grey"
+    evaluation_area = ["target_cell_in_dark", "target_cell_in_grey","target_cell_in_white"]
 
 
     for evaluate in evaluation_area:
@@ -417,6 +416,7 @@ def compute_targets_for_dh(dst, goal, features, metric):
                 sample.features["curvature"] = info_data["features"]["curvature"]
                 sample.features["segment_count"] = info_data["features"]["segment_count"]
                 sample.features["sd_steering_angle"] = info_data["features"]["sd_steering"]
+                sample.features["mean_lateral_position"] = info_data["features"]["mean_lateral_position"]
 
 
                 b = tuple()
@@ -598,7 +598,7 @@ def compare_with_dh(approach, div, features, target_area):
         dst_dh = f"../experiments/data/bng/DeepHyperion/{feature[0]}"
 
 
-        for i in range(1, 11):
+        for i in range(1, NUM_EXPERIMENTS+1):
             for subdir, _, _ in os.walk(dst_dh, followlinks=False):
                 if "dh-"+str(i) in subdir and "beamng_nvidia_runner" in subdir:
                     inputs_dh, targets_dh = compute_targets_for_dh(subdir, feature[1], feature[0], div)
@@ -634,17 +634,17 @@ def compare_with_dh(approach, div, features, target_area):
 
 if __name__ == "__main__": 
     if sys.argv[1] == "dark": 
-        features = [ ("Curvature-SegmentCount", (22, 6))]
-        compare_with_dh("ga", "INPUT", features, "target_cell_in_dark")
+        features = [ ("Curvature-MeanLateralPosition", (22, 7)), ("Curvature-SegmentCount", (23, 4))]
+        compare_with_dh("nsga2", "INPUT", features, "target_cell_in_dark")
     elif sys.argv[1] == "grey": 
-        features = [("SegmentCount-SDSteeringAngle",(7, 17))]
-        compare_with_dh("ga", "INPUT", features, "target_cell_in_grey")
-    elif sys.argv[1] == "ga":
-        features = [("Curvature-SegmentCount",(22, 5))]
-        compare_with_dh("ga", "INPUT", features, "target_cell_in_white")
+        features = [("SegmentCount-SDSteeringAngle",(7, 17)), ("Curvature-MeanLateralPosition", (21, 8)), ("Curvature-SegmentCount", (20, 8))]
+        compare_with_dh("nsga2", "INPUT", features, "target_cell_in_grey")
+    elif sys.argv[1] == "white":
+        features = [("SegmentCount-SDSteeringAngle",(8, 10)), ("Curvature-MeanLateralPosition", (23, 9)), ("Curvature-SegmentCount",(24, 6))]
+        compare_with_dh("nsga2", "INPUT", features, "target_cell_in_white")
     else:
         dst = "../experiments/data/bng/DeepAtash"
-        feature_combinations = ["SegmentCount-SDSteeringAngle"]
+        feature_combinations = ["Curvature-MeanLateralPosition", "Curvature-SegmentCount", "SegmentCount-SDSteeringAngle"]
         find_best_div_approach(dst, feature_combinations)
 
 
